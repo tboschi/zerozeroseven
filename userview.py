@@ -7,91 +7,6 @@ import pygame_textinput
 import pygame
 
 
-def triangle_down(pos, side):
-    if not isinstance(pos, Point):
-        pos = Point(pos)
-
-    tri = [Point(-side / 2., -side / math.sqrt(12)), 
-           Point( side / 2., -side / math.sqrt(12)), 
-           Point(        0.,  side / math.sqrt( 3))]
-
-    return [(pos + p).xy() for p in tri]  #return list of tuple,
-                                        #ready to be used with pygame
-
-def triangle_up(pos, side):
-    if not isinstance(pos, Point):
-        pos = Point(pos)
-
-    tri = [Point(-side / 2.,  side / 12**0.5), 
-           Point( side / 2.,  side / 12**0.5), 
-           Point(        0., -side /  3**0.5)]
-
-    return [(pos + p).xy() for p in tri]  #return list of tuple,
-                                        #ready to be used with pygame
-
-
-def vertical_rect(pos, side, ratio):
-    """keep rect vertical (hight >= width), so ratio is inverted if positive"""
-    if not isinstance(pos, Point):
-        pos = Point(pos)
-
-    if ratio < 1:   #vertical
-        base = side * ratio
-    else:
-        base = side / ratio
-
-    rect = [Point(-base/2., -side/2.),
-            Point( base/2., -side/2.),
-            Point( base/2.,  side/2.),
-            Point(-base/2.,  side/2.)]
-
-    return [(pos + p).xy() for p in rect]
-
-
-def horizontal_rect(pos, base, ratio):
-    """keep rect horizontal (hight <= width), so ratio is inverted if positive"""
-    if not isinstance(pos, Point):
-        pos = Point(pos)
-
-    if ratio < 1:   #vertical
-        side = base * ratio
-    else:
-        side = base / ratio
-
-    rect = [Point(-base/2., -side/2.), Point(base, side)]
-
-    return [(pos + p).xy() for p in rect]
-
-
-def avatar_start(pos, side):
-    if not isinstance(pos, Point):
-        pos = Point(pos)
-
-    offset = Point(-side/2., -side/2.)
-
-    return (pos + offset).xy()        #return corner position of avatar
-
-
-def avatar_name(pos, side, surf):
-    if not isinstance(pos, Point):
-        pos = Point(pos)
-    
-    w, h = surf.get_width(), surf.get_height() 
-    offset = Point(w/2., side/2. + h + 5)
-    return (pos - offset).xy()
-
-
-def avatar_name_main(pos, side, surf):
-    if not isinstance(pos, Point):
-        pos = Point(pos)
-    
-    w = surf.get_width() 
-    h = surf.get_height() 
-    offset = Point(-side/2. - w - 10, side/2. - h)
-    return (pos + offset).xy()
-
-
-
 
 #constants
 BLACK = (  0,   0,   0)
@@ -102,6 +17,130 @@ GREEN = (  0, 255,   0)
 RED   = (255,   0,   0)
 
 fps = 30
+
+
+
+class Avatar:
+    """it is a circle"""
+
+    def __init__(self):
+
+        self.name = ""
+        self.pos  = Point()
+
+
+    def avatar_start(pos, side):
+        if not isinstance(pos, Point):
+            pos = Point(pos)
+
+        offset = Point(-side/2., -side/2.)
+
+        return (pos + offset).xy()        #return corner position of avatar
+
+
+    def avatar_name(pos, side, surf):
+        if not isinstance(pos, Point):
+            pos = Point(pos)
+        
+        w, h = surf.get_width(), surf.get_height() 
+        offset = Point(w/2., side/2. + h + 5)
+        return (pos - offset).xy()
+
+
+    def triangle_down(pos, side):
+        if not isinstance(pos, Point):
+            pos = Point(pos)
+
+        tri = [Point(-side / 2., -side / math.sqrt(12)), 
+               Point( side / 2., -side / math.sqrt(12)), 
+               Point(        0.,  side / math.sqrt( 3))]
+
+        return [(pos + p).xy() for p in tri]  #return list of tuple,
+                                            #ready to be used with pygame
+
+    def triangle_up(pos, side):
+        if not isinstance(pos, Point):
+            pos = Point(pos)
+
+        tri = [Point(-side / 2.,  side / 12**0.5), 
+               Point( side / 2.,  side / 12**0.5), 
+               Point(        0., -side /  3**0.5)]
+
+        return [(pos + p).xy() for p in tri]  #return list of tuple,
+                                            #ready to be used with pygame
+
+    def vertical_rect(pos, side, ratio):
+        """keep rect vertical (hight >= width), so ratio is inverted if positive"""
+        if not isinstance(pos, Point):
+            pos = Point(pos)
+
+        if ratio < 1:   #vertical
+            base = side * ratio
+        else:
+            base = side / ratio
+
+        rect = [Point(-base/2., -side/2.),
+                Point( base/2., -side/2.),
+                Point( base/2.,  side/2.),
+                Point(-base/2.,  side/2.)]
+
+        return [(pos + p).xy() for p in rect]
+
+
+    def horizontal_rect(pos, base, ratio):
+        """keep rect horizontal (hight <= width), so ratio is inverted if positive"""
+        if not isinstance(pos, Point):
+            pos = Point(pos)
+
+        if ratio < 1:   #vertical
+            side = base * ratio
+        else:
+            side = base / ratio
+
+        rect = [Point(-base/2., -side/2.), Point(base, side)]
+
+        return [(pos + p).xy() for p in rect]
+
+
+
+
+
+class Main(Avatar):
+    """it is a bigger circle"""
+
+    def __init__(self):
+
+        self.name = ""
+        self.pos = Point()
+
+
+    def avatar_name_main(pos, side, surf):
+        if not isinstance(pos, Point):
+            pos = Point(pos)
+        
+        w = surf.get_width() 
+        h = surf.get_height() 
+        offset = Point(-side/2. - w - 10, side/2. - h)
+        return (pos + offset).xy()
+
+
+
+
+class NameDialog:
+
+    def __init__(self):
+        pass
+
+
+class StartButton:
+
+    def __init__(self):
+        pass
+
+
+class Logger:
+    def __init__(self):
+        pass
 
 
 
