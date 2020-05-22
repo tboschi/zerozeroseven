@@ -23,106 +23,185 @@ fps = 30
 class Avatar:
     """it is a circle"""
 
-    def __init__(self):
+    def __init__(self, name, size, shield, load):
 
-        self.name = ""
-        self.pos  = Point()
+        self.size = size
+        self.shield_size = shield
+        self.load_size = load
 
-
-    def avatar_start(pos, side):
-        if not isinstance(pos, Point):
-            pos = Point(pos)
-
-        offset = Point(-side/2., -side/2.)
-
-        return (pos + offset).xy()        #return corner position of avatar
+        self.name_surf = self.adjust_name(name)
 
 
-    def avatar_name(pos, side, surf):
-        if not isinstance(pos, Point):
-            pos = Point(pos)
-        
-        w, h = surf.get_width(), surf.get_height() 
-        offset = Point(w/2., side/2. + h + 5)
-        return (pos - offset).xy()
+    def adjust_name(self, name):
+        """finds right font size for name"""
+        name_size = 32
+
+        font = pygame.font.SysFont(None, name_size)
+        w, h = font.size(self.name)
+        while w > self.size and name_size > 5:
+            name_size -= 1
+
+            font = pygame.font.SysFont(None, name_size)
+            w, h = font.size(title)
+
+            font = pygame.font.SysFont(None, font_size)
+
+        return font.render(name, 1, BLACK)
 
 
-    def triangle_down(pos, side):
-        if not isinstance(pos, Point):
-            pos = Point(pos)
+    def shield_symbol(self, pos = None, side = None):
+        """draw triangle down"""
+        if pos is None:
+            pos = self.pos
+        if side is None:
+            side = self.shield_size
 
-        tri = [Point(-side / 2., -side / math.sqrt(12)), 
-               Point( side / 2., -side / math.sqrt(12)), 
-               Point(        0.,  side / math.sqrt( 3))]
+        perp = side / math.sqrt(3)
+        side /= 2.
 
-        return [(pos + p).xy() for p in tri]  #return list of tuple,
-                                            #ready to be used with pygame
+        #return list of tuples
+        return [(int(pos[0] - side), int(pos[1] - perp / 2.)), 
+                (int(pos[0] + side), int(pos[1] - perp / 2.)), 
+                (int(pos[0]       ), int(pos[1] + perp     ))]
 
-    def triangle_up(pos, side):
-        if not isinstance(pos, Point):
-            pos = Point(pos)
 
-        tri = [Point(-side / 2.,  side / 12**0.5), 
-               Point( side / 2.,  side / 12**0.5), 
-               Point(        0., -side /  3**0.5)]
+    def shield_symbol_up(self, pos = None, side = None):
+        """draw triangle up"""
+        if pos is None:
+            pos = self.pos
+        if side is None:
+            side = self.shield_size
 
-        return [(pos + p).xy() for p in tri]  #return list of tuple,
-                                            #ready to be used with pygame
+        perp = side / math.sqrt(3)
+        side /= 2.
 
-    def vertical_rect(pos, side, ratio):
-        """keep rect vertical (hight >= width), so ratio is inverted if positive"""
-        if not isinstance(pos, Point):
-            pos = Point(pos)
+        #return list of tuples
+        return [(int(pos[0] - side), int(pos[1] + perp / 2.)), 
+                (int(pos[0] + side), int(pos[1] + perp / 2.)), 
+                (int(pos[0]       ), int(pos[1] - perp     ))]
 
-        if ratio < 1:   #vertical
-            base = side * ratio
+
+    def load_symbol(self, pos, pos = None, side = None):
+        """draw vertical stick
+        it is a vertical rectangle 1:2 ratio"""
+        if pos is None:
+            pos = self.pos
+        if side is None:
+            side = self.loaded_size
+
+        side /= 2.
+        base = side / 2.
+
+        #return list of tuples
+        return [(int(pos[0] - base), int(pos[1] - side)),
+                (int(pos[0] + base), int(pos[1] - side)),
+                (int(pos[0] + base), int(pos[1] + side)),
+                (int(pos[0] - base), int(pos[1] + side))]
+
+
+
+    def avatar_name(self):
+        """compute position of avatar name"""
+        #if first time, adjust font size
+
+        ns = self.adjust_name()
+
+        w = ns.get_width() / 2.
+        h = ns.get_height()
+        return (int(self.pos[0] - w), int(self.pos[1] - h - self.size/2. - 5))
+
+
+
+    def blit_avatar(surf, col):
+        """draw avatar symbol on surf and returns rect to be updated
+        col is a colour tuple"""
+
+        r = pygame.draw.circle(surf, col, self.pos, int(self.size/2.))
+        t = surf.blit(self.name_surf,  self.avatar_name())
+
+        #return list of rects
+        return [r, t]
+
+
+    def blit_action(self, surf, act):
+        """draw action taken on top of avatar, where act is action"""
+        if act == '!':      #fire
+            return pygame.draw.circle(surf, RED, self.pos, int(self.size/5.))
+        elif act == '#':    #shield
+            return pygame.draw.polygon(surf, BLUE, self.shield_symbol())
+        elif act == '*':    #load
+            return pygame.draw.polygon(surf, GREEN, self.load_symbol())
         else:
-            base = side / ratio
-
-        rect = [Point(-base/2., -side/2.),
-                Point( base/2., -side/2.),
-                Point( base/2.,  side/2.),
-                Point(-base/2.,  side/2.)]
-
-        return [(pos + p).xy() for p in rect]
-
-
-    def horizontal_rect(pos, base, ratio):
-        """keep rect horizontal (hight <= width), so ratio is inverted if positive"""
-        if not isinstance(pos, Point):
-            pos = Point(pos)
-
-        if ratio < 1:   #vertical
-            side = base * ratio
-        else:
-            side = base / ratio
-
-        rect = [Point(-base/2., -side/2.), Point(base, side)]
-
-        return [(pos + p).xy() for p in rect]
+            return None
 
 
 
 
 
 class Main(Avatar):
-    """it is a bigger circle"""
-
-    def __init__(self):
-
-        self.name = ""
-        self.pos = Point()
+    """it is a bigger circle
+    
+    it is not actually, but just the naming position changes
+    plus there is a status method"""
 
 
-    def avatar_name_main(pos, side, surf):
-        if not isinstance(pos, Point):
-            pos = Point(pos)
-        
+    def adjust_name(self, name):
+        """64 pt name"""
+        return pygame.font.SysFont(None, 64).render(name, 1, BLACK)
+
+
+    def avatar_name(self):
+        """name position is different for main"""
         w = surf.get_width() 
         h = surf.get_height() 
-        offset = Point(-side/2. - w - 10, side/2. - h)
-        return (pos + offset).xy()
+        return (int(self.pos[0] - self.size / 2. - w - 10),
+                int(self.pos[1] - self.size / 2. + h))
 
+
+    def shield_status(self, surf):
+        """status of shield"""
+        pos = (int(self.pos[0] + self.size/2. + 5),
+               int(self.pos[1] + self.size/2. - self.shield_size / math.sqrt(12)))
+
+        #defense = self.actions.count('#')
+        for i in range(3):
+            sp = 0 if i < self.defense else 5    #define thickness
+
+            if i % 2 == 0:
+                pos = (int(pos[0] + self.shield_size / 2. + 10),
+                       int(pos[1] - self.shield_size / math.sqrt(12)))
+
+                r = pygame.draw.polygon(surf, BLUE, self.shield_symbol(pos), sp)
+            else:
+                pos = (int(pos[0] + self.shield_size / 2. + 10),
+                       int(pos[1] + self.shield_size / math.sqrt(12)))
+
+                r = pygame.draw.polygon(surf, BLUE, self.shield_symbol_up(pos), sp)
+
+            rects.append(r)
+
+        return rects
+
+
+    def load_status(self, surf):
+        """status of loaded"""
+        sp = 0 if self.loaded else 5
+        pot = (int(pos[0] + self.avatar_size / 2. + 2.5 * self.shield_size + 25,
+               int(pos[1] + self.avatar_size / 2. - self.shield_size / 2.))
+
+        return [pygame.draw.polygon(surf, GREEN, self.loaded_symbol(pos), sp)]
+
+
+
+    def blit_status(self, surf, act):
+        """collect rectangles to be updated"""
+
+        #update status
+        self.defense = act.count('#')
+        self.loaded = '!' in act
+
+        r  = self.shield_status(surf)
+        r += self.load_status(surf)
 
 
 
@@ -238,28 +317,24 @@ class MatchView:
         self.tag_uid = dict()
 
 
-    def adjust_font(self, width, title):
-        tx_size = 32
-
-        font = pygame.font.SysFont(None, tx_size)
-        w, h = font.size(title)
-
-        while w > width and tx_size > 1:
-            tx_size -= 1
-            font = pygame.font.SysFont(None, tx_size)
-            w, h = font.size(title)
-
-        return tx_size
-
-
 
 
 ########## draw players
 
     def update_players(self):
-        """add player only if client received uid or update player's status"""
+        """this routing adds player to the dictionary and updates positions
+        add player only if client received uid or update player's status"""
 
         self.pl_names = self.client.names
+        for uid, (name, stat) in self.client.names.items():
+            if uid in self.status:
+
+            if uid not in self.avatars:
+                self.avatars[uid] = Avatar(name, self.avatar_size,
+                                                 self.shield_size,
+                                                 seld.loaded_size)
+
+            self.avatars
 
         if self.client.main:
             angle  = 2. * math.pi / len(self.pl_names)

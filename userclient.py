@@ -38,7 +38,6 @@ class Client:
         self.cdown = False
 
         self.main = None
-        self.name = ""
 
         self.actions = ""
         self.report  = ""
@@ -219,12 +218,12 @@ class Client:
 
     def name_dialog(self):
         """get name input"""
-        self.name = input("Enter your name: ")
-        if self.name:
-            print("Welcome " + self.name)
+        name = input("Enter your name: ")
+        if name:
+            print("Welcome " + name)
             self.status = "WAITING"
             #self.send_name()
-            self.sock.send(self.name.encode())   #send name to server
+            self.sock.send(name.encode())   #send name to server
 
 
     def print_players(self):
