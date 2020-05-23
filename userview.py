@@ -216,8 +216,6 @@ class Main(Avatar):
 
 
 
-
-
 class NameDialog:
 
     def __init__(self, centre):
@@ -269,15 +267,26 @@ class StartButton:
         rect_pos = centre[0] - 100, centre[1] - 50
         self.rect = pygame.Rect(rect_pos[0], rect_pos[1], rect_size[0], rect_size[1])
 
-        self.ready = self.font32.render("Click me if ready", 1, BLACK)
-        self.ready_pos = (int(centre[0] - self.ready.get_width()/2),
-                          int(centre[1] - self.ready.get_height()/2))
+        #self.ready = self.font32.render("Click me if ready", 1, BLACK)
+        #self.ready_pos = (int(centre[0] - self.ready.get_width()/2),
+        #                  int(centre[1] - self.ready.get_height()/2))
 
 
-    def update(self, surf):
-        pygame.draw.rect(surf, RED, self.rect)
+    def update(self, surf, wait):
+        if wait:
+            pygame.draw.rect(surf, RED, self.rect)
+        else:
+            pygame.draw.rect(surf, GREEN, self.rect)
+
         pygame.draw.rect(surf, BLACK, self.rect, 5)
 
+        if wait:
+            ready = self.font32.render("Click me if ready", 1, BLACK)
+        else:
+            ready = self.font32.render("READY", 1, BLACK)
+
+        ready_pos = (int(centre[0] - ready.get_width()/2),
+                     int(centre[1] - ready.get_height()/2))
         self.screen.blit(ready, ready_pos.xy())
 
         return [self.rect]
@@ -352,18 +361,15 @@ class MatchView:
         self.radius = min(self.centre.x, self.centre.y)
         self.centre += Point(self.lmargin, self.tmargin)
 
-        #ready button
-        self.ready_butt = None
+        #ready button and name dialog
+        self.startbutt = StartButton(self.centre)
+        self.name_dial = NameDialog(self.centre)
 
 
-        #dict of players name -> {tag : (name, status)}
-        self.pl_names = dict()
-        #dict of players position -> {tag : position}
-        self.pl_point = dict()
+        #dict of avatars, including position -> {tag : Avatar}
+        self.avatars = dict()
 
-        self.textinput = None
 
-        self.main = None
         self.name = ""
         self.client_ready = False
         self.game_started = False
@@ -447,121 +453,23 @@ class MatchView:
 
 
 
-
-############## old one
-
-    def blit_players(self):
-        print("players")
-
-        #tag_font = pygame.font.SysFont(None, self.tag.size)
-        #tag_text = tag_font.render(str(tag), 1, WHITE)
-        #self.screen.blit(tag_text, avatar_tag(pos, tag_text))
-
-
-        rect = []
-        for uid, pos in self.pl_point.items():
-
-            name, stat = self.pl_names[uid]
-            if stat:
-                col = BLACK     #player is in game
-            else:
-                col = GRAY      #player is dead
-
-            r = pygame.draw.circle(self.screen, col,
-                               pos.xy(), int(self.avatar_size/2.))
-            rect.append(r)
-
-            if uid == self.main:
-                #print text
-                name_text = self.font64.render(name, 1, BLACK)
-                r = self.screen.blit(name_text,
-                                     avatar_name_main(pos,
-                                                  self.avatar_size,
-                                                  name_text))
-                rects.append(r)
-
-                if stat:
-                    #print shields
-                    _pos = pos \
-                         + Point(self.avatar_size/2.
-                                 + shield_size/2 + 15,
-                                   self.avatar_size/2.
-                                 - shield_size / math.sqrt(3))
-
-                    if self.actions:
-                        self.defense = self.actions.count('#')
-                    #defense = self.actions.count('#')
-                    for i in range(3):
-                        sp = 0 if i < self.defense else 5
-                        if i % 2 == 0:
-                            r = pygame.draw.polygon(self.screen, BLUE,
-                                    triangle_down(_pos, shield_size), sp)
-                        else:
-                            _pos += Point(shield_size/2 + 10,
-                                         shield_size * math.sqrt(3) / 6)
-                            r = pygame.draw.polygon(self.screen, BLUE,
-                                            triangle_up(_pos, shield_size),
-                                            sp)
-                            _pos += Point(shield_size/2 + 10,
-                                         -shield_size * math.sqrt(3) / 6)
-                        rects.append(r)
-
-                    #print load status
-                    if self.actions: loaded = '!' in self.actions
-                    sp = 0 if loaded else 5
-                    _pos = pos + Point(self.avatar_size/2.
-                                       + 2 * shield_size
-                                       + self.avatar_size/2. + 25,
-                                       self.avatar_size/2.
-                                       - shield_size / 2.)
-                    r = pygame.draw.polygon(self.screen, GREEN,
-                                            vertical_rect(_pos,
-                                            self.loaded_size, 0.5), sp)
-                    rects.append(r)
-
-            else:
-                font_size = self.adjust_font(self.avatar_size, name)
-                name_font = pygame.font.SysFont(None, font_size)
-                name_text = name_font.render(name, 1, BLACK)
-                r = self.screen.blit(name_text, avatar_name(pos, self.avatar_size, name_text))
-                rects.append(r)
-
-        pygame.display.update(rects)
-        #self.clock.tick(fps)
-
-###########################
-
-
     def blit_name_dialog(self, rect):
         """name dialog stays on until name is given"""
         print("name dialog")
 
-        name, rects = self.name_dialog.update()
+        name, rects = self.name_dial.update()
 
         if name:
-            self.client.send(name)
+            self.client.name_register(name)
+
+        return rects
 
 
     def blit_start_button(self, rect):
         """print a start button in the centre"""
         print("start button")
 
-        #self.blit_waiting_room()
-
-        rect_pos = self.centre - Point(100, 50)
-        rect_size = Point(200, 100)
-
-        rect_list = [rect_pos.xy()[0], rect_pos.xy()[1], 
-                     rect_size.xy()[0], rect_size.xy()[1]]
-        self.ready_butt = pygame.draw.rect(self.screen, RED  , rect_list)
-        r2 = pygame.draw.rect(self.screen, BLACK, rect_list, 5)
-
-        ready = self.font32.render("Click me if ready", 1, BLACK)
-        ready_pos = self.centre - Point(ready.get_width()/2, ready.get_height()/2)
-        self.screen.blit(ready, ready_pos.xy())
-
-        pygame.display.update(self.ready_butt)
-        self.clock.tick(fps)
+        return self.startbutt.update()
 
 
     def blit_waiting_ready(self, rect):

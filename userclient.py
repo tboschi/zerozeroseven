@@ -215,15 +215,19 @@ class Client:
                     self.names[uid] = (name, False)
 
 
+    def name_register(self, name):
+        print("Welcome " + name)
+        self.status = "WAITING"
+        #self.send_name()
+        self.sock.send(name.encode())   #send name to server
+
+
 
     def name_dialog(self):
         """get name input"""
         name = input("Enter your name: ")
         if name:
-            print("Welcome " + name)
-            self.status = "WAITING"
-            #self.send_name()
-            self.sock.send(name.encode())   #send name to server
+            self.name_register(name)
 
 
 
@@ -237,13 +241,17 @@ class Client:
         self.names_update = False
 
 
+    def ready_register(self):
+        self.status = "READY"
+        self.send_ready()
+        print("Waiting game to start")
+
+
     def catch_is_ready(self):
         print("Press ENTER when ready")
         ready, _, _ = select.select([sys.stdin], [], [], 1)
         if ready and '\n' in sys.stdin.readline():
-            self.status = "READY"
-            self.send_ready()
-            print("Waiting game to start")
+            self.ready_register()
 
 
     def print_actions(self):
