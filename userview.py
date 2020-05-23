@@ -19,17 +19,23 @@ RED   = (255,   0,   0)
 fps = 30
 
 
+width, height = 960, 720
+avatar_size = 100   #circle for player
+shield_size = 60    #triangle for shielding action
+loaded_size = 50    #rectangle for loading
+
 
 class Avatar:
     """it is a circle"""
 
-    def __init__(self, name, size, shield, load):
-
-        self.size = size
-        self.shield_size = shield
-        self.load_size = load
+    def __init__(self, name, position):
 
         self.name_surf = self.adjust_name(name)
+        self.pos = position
+
+
+    def set_position(self, position):
+        self.pos = position
 
 
     def adjust_name(self, name):
@@ -38,7 +44,7 @@ class Avatar:
 
         font = pygame.font.SysFont(None, name_size)
         w, h = font.size(self.name)
-        while w > self.size and name_size > 5:
+        while w > avatar_size and name_size > 5:
             name_size -= 1
 
             font = pygame.font.SysFont(None, name_size)
@@ -54,7 +60,7 @@ class Avatar:
         if pos is None:
             pos = self.pos
         if side is None:
-            side = self.shield_size
+            side = shield_size
 
         perp = side / math.sqrt(3)
         side /= 2.
@@ -70,7 +76,7 @@ class Avatar:
         if pos is None:
             pos = self.pos
         if side is None:
-            side = self.shield_size
+            side = shield_size
 
         perp = side / math.sqrt(3)
         side /= 2.
@@ -81,13 +87,13 @@ class Avatar:
                 (int(pos[0]       ), int(pos[1] - perp     ))]
 
 
-    def load_symbol(self, pos, pos = None, side = None):
+    def loaded_symbol(self, pos, pos = None, side = None):
         """draw vertical stick
         it is a vertical rectangle 1:2 ratio"""
         if pos is None:
             pos = self.pos
         if side is None:
-            side = self.loaded_size
+            side = loaded_size
 
         side /= 2.
         base = side / 2.
@@ -108,7 +114,7 @@ class Avatar:
 
         w = ns.get_width() / 2.
         h = ns.get_height()
-        return (int(self.pos[0] - w), int(self.pos[1] - h - self.size/2. - 5))
+        return (int(self.pos[0] - w), int(self.pos[1] - h - avatar_size/2. - 5))
 
 
 
@@ -116,7 +122,7 @@ class Avatar:
         """draw avatar symbol on surf and returns rect to be updated
         col is a colour tuple"""
 
-        r = pygame.draw.circle(surf, col, self.pos, int(self.size/2.))
+        r = pygame.draw.circle(surf, col, self.pos, int(avatar_size/2.))
         t = surf.blit(self.name_surf,  self.avatar_name())
 
         #return list of rects
@@ -126,11 +132,11 @@ class Avatar:
     def blit_action(self, surf, act):
         """draw action taken on top of avatar, where act is action"""
         if act == '!':      #fire
-            return pygame.draw.circle(surf, RED, self.pos, int(self.size/5.))
+            return pygame.draw.circle(surf, RED, self.pos, int(avatar_size/5.))
         elif act == '#':    #shield
             return pygame.draw.polygon(surf, BLUE, self.shield_symbol())
-        elif act == '*':    #load
-            return pygame.draw.polygon(surf, GREEN, self.load_symbol())
+        elif act == '*':    #loaded
+            return pygame.draw.polygon(surf, GREEN, self.loaded_symbol())
         else:
             return None
 
@@ -154,27 +160,28 @@ class Main(Avatar):
         """name position is different for main"""
         w = surf.get_width() 
         h = surf.get_height() 
-        return (int(self.pos[0] - self.size / 2. - w - 10),
-                int(self.pos[1] - self.size / 2. + h))
+        return (int(self.pos[0] - avatar_size / 2. - w - 10),
+                int(self.pos[1] - avatar_size / 2. + h))
 
 
     def shield_status(self, surf):
         """status of shield"""
-        pos = (int(self.pos[0] + self.size/2. + 5),
-               int(self.pos[1] + self.size/2. - self.shield_size / math.sqrt(12)))
+        pos = (int(self.pos[0] + avatar_size/2. + 5),
+               int(self.pos[1] + avatar_size/2. - shield_size / math.sqrt(12)))
 
+        rects = []
         #defense = self.actions.count('#')
         for i in range(3):
             sp = 0 if i < self.defense else 5    #define thickness
 
             if i % 2 == 0:
-                pos = (int(pos[0] + self.shield_size / 2. + 10),
-                       int(pos[1] - self.shield_size / math.sqrt(12)))
+                pos = (int(pos[0] + shield_size / 2. + 10),
+                       int(pos[1] - shield_size / math.sqrt(12)))
 
                 r = pygame.draw.polygon(surf, BLUE, self.shield_symbol(pos), sp)
             else:
-                pos = (int(pos[0] + self.shield_size / 2. + 10),
-                       int(pos[1] + self.shield_size / math.sqrt(12)))
+                pos = (int(pos[0] + shield_size / 2. + 10),
+                       int(pos[1] + shield_size / math.sqrt(12)))
 
                 r = pygame.draw.polygon(surf, BLUE, self.shield_symbol_up(pos), sp)
 
@@ -183,38 +190,103 @@ class Main(Avatar):
         return rects
 
 
-    def load_status(self, surf):
+    def loaded_status(self, surf):
         """status of loaded"""
         sp = 0 if self.loaded else 5
-        pot = (int(pos[0] + self.avatar_size / 2. + 2.5 * self.shield_size + 25,
-               int(pos[1] + self.avatar_size / 2. - self.shield_size / 2.))
+        pot = (int(pos[0] + self.avatar_size / 2. + 2.5 * shield_size + 25),
+               int(pos[1] + self.avatar_size / 2. - shield_size / 2.))
 
         return [pygame.draw.polygon(surf, GREEN, self.loaded_symbol(pos), sp)]
 
 
+    def update_status(self, act):
+        """update the status from aavailable actions"""
+        if act:
+            self.defense = act.count('#')
+            self.loaded = '!' in act
 
-    def blit_status(self, surf, act):
+
+    def blit_status(self, surf):
         """collect rectangles to be updated"""
 
-        #update status
-        self.defense = act.count('#')
-        self.loaded = '!' in act
-
         r  = self.shield_status(surf)
-        r += self.load_status(surf)
+        r += self.loaded_status(surf)
+
+        return r
+
+
 
 
 
 class NameDialog:
 
-    def __init__(self):
-        pass
+    def __init__(self, centre):
+        """init parameters"""
+        self.textinput = pygame_textinput.TextInput()
+
+        self.rect_size = 400, 200
+        self.rect_pos  = int(centre[0] - 200), int(centre[1] - 100)
+        self.rect = Rect(rect_pos[0], rect_pos[1], rect_size[0], rect_size[1])
+
+        self.inst = self.font32.render("Insert your name:", 1, BLUE)
+        self.inst_pos = int(centre[0] - 190), int(centre[1] - 90)
+
+        self.name_pos = int(centre[0] - 190), int(centre[1] - 40)
+
+
+    def update(self, surf):
+
+        h  = self.inst.get_height()
+        b0 = self.rect_pos[0],  self.rect_pos.[1] + h + 20
+        b1 = self.rect_pos[0] + self.rect_size.[0], self.rect_pos.[1] + h + 20
+
+        pygame.draw.rect(surf, WHITE, self.rect)
+        pygame.draw.rect(surf, BLACK, self.rect, 5)
+        pygame.draw.line(surf, BLACK, b0, b1)
+
+        surf.blit(self.inst, self.inst_pos)
+        surf.blit(self.textinput.get_surface(), self.name_pos)
+
+        #in case window is closed
+        #events = pygame.event.get()
+        #for event in events:
+        #    if event.type == pygame.QUIT:
+        #        exit()
+
+        name = ""
+        if self.textinput.update(events):
+            name = self.textinput.get_text()
+
+        return name, [self.rect]
+
 
 
 class StartButton:
 
-    def __init__(self):
-        pass
+    def __init__(self, centre):
+        """create dialog for start button"""
+        rect_size = 200, 100
+        rect_pos = centre[0] - 100, centre[1] - 50
+        self.rect = pygame.Rect(rect_pos[0], rect_pos[1], rect_size[0], rect_size[1])
+
+        self.ready = self.font32.render("Click me if ready", 1, BLACK)
+        self.ready_pos = (int(centre[0] - self.ready.get_width()/2),
+                          int(centre[1] - self.ready.get_height()/2))
+
+
+    def update(self, surf):
+        pygame.draw.rect(surf, RED, self.rect)
+        pygame.draw.rect(surf, BLACK, self.rect, 5)
+
+        self.screen.blit(ready, ready_pos.xy())
+
+        return [self.rect]
+
+
+    def is_ready(self):
+        mouse = pygame.mouse.get_pos()
+        return self.rect.collidepoint(mouse)
+
 
 
 class Logger:
@@ -236,14 +308,12 @@ class MatchView:
         pygame.font.init()
 
         #initialize the screen
-        self.size = width, height = 960, 720
-        self.screen = pygame.display.set_mode(self.size)
+        self.screen = pygame.display.set_mode((width, heigh))
         pygame.display.set_caption("zerozeroseven")
 
         #initialize pygame clock
         self.clock = pygame.time.Clock()
 
-        self.font24 = pygame.font.SysFont(None, 24)
         self.font32 = pygame.font.SysFont(None, 32)
         self.font48 = pygame.font.SysFont(None, 48)
         self.font64 = pygame.font.SysFont(None, 64)      #large font
@@ -251,17 +321,9 @@ class MatchView:
         #initialize graphics
         #surface
 
-        self.avatar_size = 100   #circle for player
-        #avatar = pygame.draw.circle(screen, BLACK, pos, avatar_size/2.)
-        self.shield_size = 60    #triangle for shielding action
-        #shield = pygame.draw.polygon(screen, BLUE, shield_pos)
-        self.loaded_size = 50
-        #loaded = pygame.draw.line(screen, BLUE, loaded_pos, int(loaded_size / 10))
 
         #self.status_shield_size = 80
         #self.status_loaded_size = 70
-
-        self.tag_size = 64
 
         self.board_pos  = (0, 0)
         self.board_size = (height, height)
@@ -280,10 +342,10 @@ class MatchView:
 
 
         #now define margins
-        self.bmargin = 5  + self.avatar_size/2.
-        self.tmargin = 32 + self.avatar_size/2.
-        self.lmargin = 10 + self.avatar_size/2.
-        self.rmargin = 10 + self.avatar_size/2.
+        self.bmargin = 5  + avatar_size/2.
+        self.tmargin = 32 + avatar_size/2.
+        self.lmargin = 10 + avatar_size/2.
+        self.rmargin = 10 + avatar_size/2.
 
         self.centre = Point((width - self.side_bar - self.lmargin - self.rmargin)/ 2.,
                             (height - self.tmargin - self.bmargin) / 2.)
@@ -308,9 +370,9 @@ class MatchView:
         self.game_starting = False
         self.take_action = False
 
-        self.actions = ""
-        self.report  = ""
-        self.defense = 3
+        self.action = ""
+        self.report = ""
+        self.shield = 3
         self.loaded = False
 
         self.tags = "1234567890qwertyuiop"
@@ -322,37 +384,36 @@ class MatchView:
 ########## draw players
 
     def update_players(self):
-        """this routing adds player to the dictionary and updates positions
+        """this routine adds player to the dictionary and updates positions
         add player only if client received uid or update player's status"""
 
-        self.pl_names = self.client.names
-        for uid, (name, stat) in self.client.names.items():
-            if uid in self.status:
+        names = self.client.names
+        main = self.client.main
 
-            if uid not in self.avatars:
-                self.avatars[uid] = Avatar(name, self.avatar_size,
-                                                 self.shield_size,
-                                                 seld.loaded_size)
-
-            self.avatars
-
-        if self.client.main:
-            angle  = 2. * math.pi / len(self.pl_names)
+        if main:
+            angle  = 2. * math.pi / len(names)
         else:   #keep space for main player
-            angle  = 2. * math.pi / (len(self.pl_names) + 1)
+            angle  = 2. * math.pi / (len(names) + 1)
 
         t = 1
-        for uid in self.pl_names.keys():
-            if uid == self.client.main:
+        for uid, (name, _) in names.items():
+            if uid == main:
                 k = 0
             else:
                 k = t
                 t += 1
+
             #k is 0 for main player
             pos = Point(self.radius * math.cos(math.pi/2. + k*angle), \
                         self.radius * math.sin(math.pi/2. + k*angle))
 
-            self.pl_point[uid] = self.centre + pos
+            if uid in self.avatars:
+                self.avatars[uid].set_position(pos)
+            else:
+                if uid == main:
+                    self.avatars[uid] = Main(name, pos)
+                else:
+                    self.avatars[uid] = Avatar(name, pos)
 
 
 
@@ -360,101 +421,30 @@ class MatchView:
         """game is game status, true is on, false is not on"""
         print("waiting room")
 
+        names = self.client.names
+        main = self.client.main
+
         if game:
             colON, colOFF = GREEN, RED
         else:
             colON, colOFF = BLACK, GRAY
 
-        #tag_font = pygame.font.SysFont(None, self.tag.size)
-        #tag_text = tag_font.render(str(tag), 1, WHITE)
-        #self.screen.blit(tag_text, avatar_tag(pos, tag_text))
-
         rects = []
-        for uid, pos in self.pl_point.items():
+        for uid, (name, stat) in names.items():
 
-            name, stat = self.pl_names[uid]
             if stat:
                 col = colON     #player is ready/alive
             else:
                 col = colOFF    #player is not ready/dead
 
-            r = pygame.draw.circle(self.screen, col,
-                                   pos.xy(), int(self.avatar_size/2.))
-            rect.append(r)
+            rects += self.avatars[uid].blit_avatar(self.screen, col)
 
             if uid == self.main:
-                name_text = self.font64.render(name, 1, BLACK)
-                r = self.screen.blit(name_text,
-                        avatar_name_main(pos, self.avatar_size, name_text))
-                rects.append(r)
-                if game:
-                    rects += self.blit_main_status()
-
-            else:
-                font_size = self.adjust_font(self.avatar_size, name)
-                name_font = pygame.font.SysFont(None, font_size)
-                name_text = name_font.render(name, 1, BLACK)
-                r = self.screen.blit(name_text,
-                        avatar_name(pos, self.avatar_size, name_text))
-                rects.append(r)
-
-        return rects
-
-        #pygame.display.update(rect)
-        #self.clock.tick(fps)   #no waiting here!
+                rects += self.avatars[uid].blit_status(self.screen)
+            
+        return rects    #list of rects to be updated
 
 
-
-    def blit_main_status(self):
-        """draw available actions for main"""
-        print("players")
-
-        rects = []
-        name, stat = self.pl_names[self.main]
-
-        if stat:
-            #print shields
-            _pos = pos + Point(self.avatar_size/2.
-                       + self.shield_size/2 + 15,
-                         self.avatar_size/2.
-                       - self.shield_size / math.sqrt(3))
-
-            if self.actions:
-                self.defense = self.actions.count('#')
-            #defense = self.actions.count('#')
-            for i in range(3):
-                sp = 0 if i < self.defense else 5
-                if i % 2 == 0:
-                    r = pygame.draw.polygon(self.screen, BLUE,
-                            triangle_down(_pos, self.shield_size), sp)
-                else:
-                    _pos += Point(self.shield_size/2 + 10,
-                                 self.shield_size * math.sqrt(3) / 6)
-                    r = pygame.draw.polygon(self.screen, BLUE,
-                                    triangle_up(_pos, self.shield_size),
-                                    sp)
-                    _pos += Point(self.shield_size/2 + 10,
-                                 -self.shield_size * math.sqrt(3) / 6)
-                rects.append(r)
-
-            #print load status
-            if self.actions:
-                self.loaded = '!' in self.actions
-            sp = 0 if self.loaded else 5
-            _pos = pos + Point(self.avatar_size/2.
-                               + 2 * self.shield_size
-                               + self.avatar_size/2. + 25,
-                                 self.avatar_size/2.
-                               - self.shield_size / 2.)
-            r = pygame.draw.polygon(self.screen, GREEN,
-                                    vertical_rect(_pos,
-                                    self.loaded_size, 0.5), sp)
-            rects.append(r)
-
-        return rects
-
-        #pygame.display.update(rects)
-        #self.clock.tick(fps)
 
 
 
@@ -494,9 +484,9 @@ class MatchView:
                     #print shields
                     _pos = pos \
                          + Point(self.avatar_size/2.
-                                 + self.shield_size/2 + 15,
+                                 + shield_size/2 + 15,
                                    self.avatar_size/2.
-                                 - self.shield_size / math.sqrt(3))
+                                 - shield_size / math.sqrt(3))
 
                     if self.actions:
                         self.defense = self.actions.count('#')
@@ -505,25 +495,25 @@ class MatchView:
                         sp = 0 if i < self.defense else 5
                         if i % 2 == 0:
                             r = pygame.draw.polygon(self.screen, BLUE,
-                                    triangle_down(_pos, self.shield_size), sp)
+                                    triangle_down(_pos, shield_size), sp)
                         else:
-                            _pos += Point(self.shield_size/2 + 10,
-                                         self.shield_size * math.sqrt(3) / 6)
+                            _pos += Point(shield_size/2 + 10,
+                                         shield_size * math.sqrt(3) / 6)
                             r = pygame.draw.polygon(self.screen, BLUE,
-                                            triangle_up(_pos, self.shield_size),
+                                            triangle_up(_pos, shield_size),
                                             sp)
-                            _pos += Point(self.shield_size/2 + 10,
-                                         -self.shield_size * math.sqrt(3) / 6)
+                            _pos += Point(shield_size/2 + 10,
+                                         -shield_size * math.sqrt(3) / 6)
                         rects.append(r)
 
                     #print load status
                     if self.actions: loaded = '!' in self.actions
                     sp = 0 if loaded else 5
                     _pos = pos + Point(self.avatar_size/2.
-                                       + 2 * self.shield_size
+                                       + 2 * shield_size
                                        + self.avatar_size/2. + 25,
                                        self.avatar_size/2.
-                                       - self.shield_size / 2.)
+                                       - shield_size / 2.)
                     r = pygame.draw.polygon(self.screen, GREEN,
                                             vertical_rect(_pos,
                                             self.loaded_size, 0.5), sp)
@@ -542,58 +532,14 @@ class MatchView:
 ###########################
 
 
-
-
-
     def blit_name_dialog(self, rect):
         """name dialog stays on until name is given"""
         print("name dialog")
 
-        #self.blit_waiting_room()
+        name, rects = self.name_dialog.update()
 
-        # Create TextInput-object
-        if not self.textinput:
-            self.textinput = pygame_textinput.TextInput()
-
-        rect_pos = self.centre - Point(200, 100)
-        ins_pos  = rect_pos + Point(10, 10)
-        name_pos = rect_pos + Point(10, 60)
-        rect_size = Point(400, 200)
-        rect_list = [rect_pos.xy()[0], rect_pos.xy()[1], 
-                     rect_size.xy()[0], rect_size.xy()[1]]
-        surf = pygame.draw.rect(self.screen, WHITE, rect_list)
-        insert = self.font32.render("Insert your name:", 1, BLUE)
-
-        h = insert.get_height()
-        bar0 = Point(rect_pos.x, rect_pos.y + h + 20)
-        bar1 = Point(rect_pos.x + rect_size.x, rect_pos.y + h + 20)
-        #pygame.display.update([r1, insert.get_rect()])
-
-        while not self.name:
-
-            pygame.draw.rect(self.screen, WHITE, rect_list)
-            pygame.draw.rect(self.screen, BLACK, rect_list, 5)
-            pygame.draw.line(self.screen, BLACK, bar0.xy(), bar1.xy())
-            self.screen.blit(insert, ins_pos.xy())
-            self.screen.blit(self.textinput.get_surface(), name_pos.xy())
-
-            #in case window is closed
-            events = pygame.event.get()
-            for event in events:
-                if event.type == pygame.QUIT:
-                    exit()
-            name_input = self.textinput.update(events)
-
-            pygame.display.update(surf)
-            self.clock.tick(fps)
-
-            if name_input:
-                self.name = self.textinput.get_text()
-                #this blocks until server returns
-                uid = self.client.send_name(self.name)
-                self.add_player(uid, self.name, status=False, main=True)
-
-
+        if name:
+            self.client.send(name)
 
 
     def blit_start_button(self, rect):
@@ -839,7 +785,7 @@ class MatchView:
         #defending
         for id0 in shields:
             pygame.draw.polygon(self.screen, BLUE,
-                                triangle_down(self.pl_point[id0], self.shield_size))
+                                triangle_down(self.pl_point[id0], shield_size))
 
         #loading
         for id0 in loads:

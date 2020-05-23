@@ -226,6 +226,7 @@ class Client:
             self.sock.send(name.encode())   #send name to server
 
 
+
     def print_players(self):
         """loop through characters of self.actions"""
         print("Players:")
