@@ -364,7 +364,8 @@ class Client:
 
 
     def update(self):
-        """main function to run in an infinite loop"""
+        """main function to run in an infinite loop
+        return True if keeps updating, False when finished"""
 
         #if self.status != "PLAYING" and self.status != "GAMEOVER":
         if self.status not in self.play_status:
@@ -415,7 +416,9 @@ class Client:
         elif self.status == "GAMEOVER":
             self.print_winner()
             self.sock.close()
-            exit()
+            return False
+
+        return True
 
 
 
@@ -462,6 +465,6 @@ if __name__ == "__main__":
     port = 5000
     cli = Client(host, port)
 
-    while True:
-        cli.update()
+    while cli.update():
+        pass
 

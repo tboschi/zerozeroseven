@@ -267,34 +267,29 @@ class StartButton:
         rect_pos = centre[0] - 100, centre[1] - 50
         self.rect = pygame.Rect(rect_pos[0], rect_pos[1], rect_size[0], rect_size[1])
 
-        #self.ready = self.font32.render("Click me if ready", 1, BLACK)
-        #self.ready_pos = (int(centre[0] - self.ready.get_width()/2),
-        #                  int(centre[1] - self.ready.get_height()/2))
+        self.ready = self.font32.render("Click me if ready", 1, BLACK)
+        self.col = RED
 
 
     def update(self, surf, wait):
-        if wait:
-            pygame.draw.rect(surf, RED, self.rect)
-        else:
-            pygame.draw.rect(surf, GREEN, self.rect)
-
+        pygame.draw.rect(surf, self.col, self.rect)
         pygame.draw.rect(surf, BLACK, self.rect, 5)
 
-        if wait:
-            ready = self.font32.render("Click me if ready", 1, BLACK)
-        else:
-            ready = self.font32.render("READY", 1, BLACK)
-
-        ready_pos = (int(centre[0] - ready.get_width()/2),
-                     int(centre[1] - ready.get_height()/2))
-        self.screen.blit(ready, ready_pos.xy())
+        ready_pos = (int(centre[0] - self.ready.get_width()/2),
+                     int(centre[1] - self.ready.get_height()/2))
+        self.screen.blit(self.ready, ready_pos.xy())
 
         return [self.rect]
 
 
     def is_ready(self):
-        mouse = pygame.mouse.get_pos()
-        return self.rect.collidepoint(mouse)
+        ret = self.rect.collidepoint(pygame.mouse.get_pos())
+
+        if ret:
+            self.ready = self.font32.render("READY", 1, BLACK)
+            self.col = GREEN
+
+        return ret
 
 
 
@@ -494,10 +489,7 @@ class MatchView:
         self.clock.tick(fps)
 
 
-    def blit_start_ready(self):
-
-
-    def blit_ready(self, rect):
+    def blit_countdown(self, rect):
         """game is about to start, show count down"""
         print("ready")
 
@@ -613,7 +605,7 @@ class MatchView:
 
 ########## zero zero seven countdown
 
-    def blit_countdown(self, text):
+    def blit_zerozero(self, text):
         """draw zero zero seven countdown and print 'text' """
         print("countdown")
 
@@ -810,22 +802,20 @@ class MatchView:
     def update(self):
         """main function to run in an infinite loop"""
 
+        rects = []
         cli = self.client
         #if self.status != "PLAYING" and self.status != "GAMEOVER":
         if cli.status not in cli.play_status:
             cli.waiting()
             if cli.names_update:
                 self.update_players()
-                self.blit_players()
+                rects += self.blit_players()
                 #cli.print_players()
 
         if cli.status == "REGISTER":
-            #cli.name_dialog()  #catch name
-            self.blit_name_dialog()  #catch name
-        elif cli.status == "WAITING":
-            #cli.print_players()
-            self.blit_ready()   #press enter
-        elif cli.status == "READY":
+            rects += self.blit_name_dialog()  #catch name
+        elif cli.status == "WAITING" or cli.status == "READY":
+            rects += self.blit_ready()   #click start or ready
             if cli.start_signal:
                 cli.status = "PLAYING"
                 cli.reset_count = True
@@ -863,7 +853,9 @@ class MatchView:
         elif cli.status == "GAMEOVER":
             self.blit_winner()
             cli.sock.close()
-            exit()
+            return
+
+        self.screen.update(rects)
 
 
 
