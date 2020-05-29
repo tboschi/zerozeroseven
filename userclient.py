@@ -430,7 +430,7 @@ class Client:
             self.reset_count = False
 
         try:
-            tt = next(self.cdown)
+            tt, _ = next(self.cdown)
         except StopIteration:   #stop iteration, don't call this anymore
             return False
         else:
@@ -446,7 +446,7 @@ class Client:
             self.reset_count = False
 
         try:
-            tt = next(self.cdown)
+            tt, _ = next(self.cdown)
         except StopIteration:   #stop iteration, don't call this anymore
             #print("seven!")
             return False

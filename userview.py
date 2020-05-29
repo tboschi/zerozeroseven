@@ -292,6 +292,62 @@ class StartButton:
         return ret
 
 
+class Counter
+
+    def __init__(self, centre):
+        self.centre = centre
+        self.font64 = pygame.font.SysFont(None, 64)      #large font
+
+
+    def reset(self, messages, dt=1):
+        """reset countdown and create new one
+        the length of time is given by messages and dt"""
+        if isinstance(messages, list):
+            self.words = messages
+        elif isinstance(messages, str):
+            self.words = messages.split()
+
+        self.dt = dt
+        self.text = ""
+        self.cdown = count.down(len(self.words), dt)
+
+
+    def countdown(self):
+        """return text from words and proprtion in dt of time
+        since it is count.down, now is decreasing"""
+        try:
+            tt, now = next(self.cdown)
+        except StopIteration:   #stop iteration, don't call this anymore
+            return False
+        else:
+            if tt is not None:
+                self.text = self.words.pop(0)
+            return self.text, now / self.dt
+
+
+    def blit_countdown(self, surf):
+        """print countdown with changing alpha at centre"""
+        text, sec = self.countdown()     #text and time
+
+        ready_wh = self.font64.size(text)
+        ready_pos = (int(self.centre[0] - ready_wh[0] / 2.)
+                     int(self.centre[1] - ready_wh[1] / 2.))
+
+        area = pygame.Rect(ready_pos[0], ready_pos[1],
+                           ready_wh[0],  ready_wh[1])
+        area.inflate_ip(10, 10)
+
+        alpha = int(255 * sec)
+
+        ready = self.font64.render(text, 1, BLACK, WHITE)
+        ready.set_alpha(alpha)
+
+        pygame.draw.rect(self.screen, WHITE, area)
+        self.screen.blit(ready, ready_pos)
+
+        return [area]
+
+
 
 class Logger:
     def __init__(self):
@@ -356,9 +412,10 @@ class MatchView:
         self.radius = min(self.centre.x, self.centre.y)
         self.centre += Point(self.lmargin, self.tmargin)
 
-        #ready button and name dialog
+        #ready button, name dialog, counter
         self.startbutt = StartButton(self.centre)
         self.name_dial = NameDialog(self.centre)
+        self.counter   = Counter(self.centre)
 
 
         #dict of avatars, including position -> {tag : Avatar}
@@ -447,12 +504,11 @@ class MatchView:
 
 
 
-
     def blit_name_dialog(self, rect):
         """name dialog stays on until name is given"""
         print("name dialog")
 
-        name, rects = self.name_dial.update()
+        name, rects = self.name_dial.update(self.screen)
 
         if name:
             self.client.name_register(name)
@@ -460,11 +516,20 @@ class MatchView:
         return rects
 
 
+
+
     def blit_start_button(self, rect):
         """print a start button in the centre"""
         print("start button")
 
         return self.startbutt.update()
+
+
+    def blit_countdown(self, rect):
+        """blit game countdown"""
+
+        return self.counter.blit_countdown(self.screen)
+
 
 
     def blit_waiting_ready(self, rect):
