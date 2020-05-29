@@ -18,7 +18,6 @@ RED   = (255,   0,   0)
 
 fps = 30
 
-
 width, height = 960, 720
 avatar_size = 100   #circle for player
 shield_size = 60    #triangle for shielding action
@@ -30,12 +29,17 @@ class Avatar:
 
     def __init__(self, name, position):
 
-        self.name_surf = self.adjust_name(name)
+        self.name = name
+        self.name_surf = self.adjust_name(self.name)
         self.pos = position
 
 
     def set_position(self, position):
-        self.pos = position
+        """position is a tuple"""
+        if isinstance(position, tuple):
+            self.pos = position
+        else:
+            raise ValueError("set_position: not a tuple")
 
 
     def adjust_name(self, name):
@@ -43,7 +47,7 @@ class Avatar:
         name_size = 32
 
         font = pygame.font.SysFont(None, name_size)
-        w, h = font.size(self.name)
+        w, h = font.size(name)
         while w > avatar_size and name_size > 5:
             name_size -= 1
 
@@ -87,7 +91,7 @@ class Avatar:
                 (int(pos[0]       ), int(pos[1] - perp     ))]
 
 
-    def loaded_symbol(self, pos, pos = None, side = None):
+    def loaded_symbol(self, pos = None, side = None):
         """draw vertical stick
         it is a vertical rectangle 1:2 ratio"""
         if pos is None:
@@ -110,15 +114,13 @@ class Avatar:
         """compute position of avatar name"""
         #if first time, adjust font size
 
-        ns = self.adjust_name()
-
-        w = ns.get_width() / 2.
-        h = ns.get_height()
+        w = self.name_surf.get_width() / 2.
+        h = self.name_surf.get_height()
         return (int(self.pos[0] - w), int(self.pos[1] - h - avatar_size/2. - 5))
 
 
 
-    def blit_avatar(surf, col):
+    def blit_avatar(self, surf, col):
         """draw avatar symbol on surf and returns rect to be updated
         col is a colour tuple"""
 
@@ -139,7 +141,6 @@ class Avatar:
             return pygame.draw.polygon(surf, GREEN, self.loaded_symbol())
         else:
             return None
-
 
 
 
@@ -224,19 +225,21 @@ class NameDialog:
 
         self.rect_size = 400, 200
         self.rect_pos  = int(centre[0] - 200), int(centre[1] - 100)
-        self.rect = Rect(rect_pos[0], rect_pos[1], rect_size[0], rect_size[1])
+        self.rect = pygame.Rect(self.rect_pos[0],  self.rect_pos[1],
+                                self.rect_size[0], self.rect_size[1])
 
-        self.inst = self.font32.render("Insert your name:", 1, BLUE)
+        font32 = pygame.font.SysFont(None, 32)
+        self.inst = font32.render("Insert your name:", 1, BLUE)
+
         self.inst_pos = int(centre[0] - 190), int(centre[1] - 90)
-
         self.name_pos = int(centre[0] - 190), int(centre[1] - 40)
 
 
-    def update(self, surf):
+    def update(self, surf, evts):
 
         h  = self.inst.get_height()
-        b0 = self.rect_pos[0],  self.rect_pos.[1] + h + 20
-        b1 = self.rect_pos[0] + self.rect_size.[0], self.rect_pos.[1] + h + 20
+        b0 = self.rect_pos[0],  self.rect_pos[1] + h + 20
+        b1 = self.rect_pos[0] + self.rect_size[0], self.rect_pos[1] + h + 20
 
         pygame.draw.rect(surf, WHITE, self.rect)
         pygame.draw.rect(surf, BLACK, self.rect, 5)
@@ -252,7 +255,7 @@ class NameDialog:
         #        exit()
 
         name = ""
-        if self.textinput.update(events):
+        if self.textinput.update(evts):
             name = self.textinput.get_text()
 
         return name, [self.rect]
@@ -267,32 +270,39 @@ class StartButton:
         rect_pos = centre[0] - 100, centre[1] - 50
         self.rect = pygame.Rect(rect_pos[0], rect_pos[1], rect_size[0], rect_size[1])
 
-        self.ready = self.font32.render("Click me if ready", 1, BLACK)
+        font32 = pygame.font.SysFont(None, 32)
+        self.click = font32.render("Click me if ready", 1, BLACK)
+        self.ready = font32.render("READY", 1, BLACK)
+
+        self.msg = self.click
         self.col = RED
+        self.centre = centre
 
 
-    def update(self, surf, wait):
+    def update(self, surf):
         pygame.draw.rect(surf, self.col, self.rect)
         pygame.draw.rect(surf, BLACK, self.rect, 5)
 
-        ready_pos = (int(centre[0] - self.ready.get_width()/2),
-                     int(centre[1] - self.ready.get_height()/2))
-        self.screen.blit(self.ready, ready_pos.xy())
+        ready_pos = (int(self.centre[0] - self.msg.get_width()/2),
+                     int(self.centre[1] - self.msg.get_height()/2))
+        surf.blit(self.msg, ready_pos)
 
         return [self.rect]
 
 
-    def is_ready(self):
-        ret = self.rect.collidepoint(pygame.mouse.get_pos())
+    def is_ready(self, evts):
+        ret = False
+        if evts.type == pygame.MOUSEBUTTONUP:
+            ret = self.rect.collidepoint(pygame.mouse.get_pos())
 
         if ret:
-            self.ready = self.font32.render("READY", 1, BLACK)
+            self.msg = self.ready
             self.col = GREEN
 
         return ret
 
 
-class Counter
+class Counter:
 
     def __init__(self, centre):
         self.centre = centre
@@ -330,7 +340,7 @@ class Counter
         text, sec = self.countdown()     #text and time
 
         ready_wh = self.font64.size(text)
-        ready_pos = (int(self.centre[0] - ready_wh[0] / 2.)
+        ready_pos = (int(self.centre[0] - ready_wh[0] / 2.),
                      int(self.centre[1] - ready_wh[1] / 2.))
 
         area = pygame.Rect(ready_pos[0], ready_pos[1],
@@ -342,8 +352,8 @@ class Counter
         ready = self.font64.render(text, 1, BLACK, WHITE)
         ready.set_alpha(alpha)
 
-        pygame.draw.rect(self.screen, WHITE, area)
-        self.screen.blit(ready, ready_pos)
+        pygame.draw.rect(surf, WHITE, area)
+        surf.blit(ready, ready_pos)
 
         return [area]
 
@@ -368,7 +378,7 @@ class MatchView:
         pygame.font.init()
 
         #initialize the screen
-        self.screen = pygame.display.set_mode((width, heigh))
+        self.screen = pygame.display.set_mode((width, height))
         pygame.display.set_caption("zerozeroseven")
 
         #initialize pygame clock
@@ -392,8 +402,8 @@ class MatchView:
 
 
         self.side_bar = abs(width - height)
-        self.side_sep = Point(width - self.side_bar, 0), \
-                        Point(width - self.side_bar, height)
+        self.side_start = width - self.side_bar, 0
+        self.side_end   = width - self.side_bar, height
         
         self.report_pos  = (height, 0)
         self.report_size = (self.side_bar, height)
@@ -407,10 +417,12 @@ class MatchView:
         self.lmargin = 10 + avatar_size/2.
         self.rmargin = 10 + avatar_size/2.
 
-        self.centre = Point((width - self.side_bar - self.lmargin - self.rmargin)/ 2.,
-                            (height - self.tmargin - self.bmargin) / 2.)
-        self.radius = min(self.centre.x, self.centre.y)
-        self.centre += Point(self.lmargin, self.tmargin)
+        self.radius = 0.5 * min(width - self.side_bar
+                                - self.lmargin - self.rmargin,
+                                height - self.tmargin - self.bmargin)
+        self.centre = int(.5 * (width - self.side_bar - self.lmargin
+                                + self.rmargin)), \
+                      int(.5 * (height + self.tmargin - self.bmargin))
 
         #ready button, name dialog, counter
         self.startbutt = StartButton(self.centre)
@@ -437,6 +449,11 @@ class MatchView:
         self.tag_uid = dict()
 
 
+        self.screen.blit(self.board_surf, self.board_pos)
+        self.screen.blit(self.report_surf, self.report_pos)
+        pygame.draw.line(self.screen, BLACK, self.side_start, self.side_end, 5)
+        pygame.display.flip()
+
 
 
 ########## draw players
@@ -447,6 +464,8 @@ class MatchView:
 
         names = self.client.names
         main = self.client.main
+
+        print ("there are ", len(names))
 
         if main:
             angle  = 2. * math.pi / len(names)
@@ -462,8 +481,8 @@ class MatchView:
                 t += 1
 
             #k is 0 for main player
-            pos = Point(self.radius * math.cos(math.pi/2. + k*angle), \
-                        self.radius * math.sin(math.pi/2. + k*angle))
+            pos = int(self.radius * math.cos(math.pi/2. + k*angle)), \
+                  int(self.radius * math.sin(math.pi/2. + k*angle))
 
             if uid in self.avatars:
                 self.avatars[uid].set_position(pos)
@@ -497,18 +516,18 @@ class MatchView:
 
             rects += self.avatars[uid].blit_avatar(self.screen, col)
 
-            if uid == self.main:
+            if uid == main:
                 rects += self.avatars[uid].blit_status(self.screen)
             
         return rects    #list of rects to be updated
 
 
 
-    def blit_name_dialog(self, rect):
+    def blit_name_dialog(self, evts):
         """name dialog stays on until name is given"""
         print("name dialog")
 
-        name, rects = self.name_dial.update(self.screen)
+        name, rects = self.name_dial.update(self.screen, evts)
 
         if name:
             self.client.name_register(name)
@@ -518,18 +537,108 @@ class MatchView:
 
 
 
-    def blit_start_button(self, rect):
+    def blit_start_button(self, evts):
         """print a start button in the centre"""
-        print("start button")
+        #print("start button")
 
-        return self.startbutt.update()
+        self.startbutt.is_ready(evts)
+        return self.startbutt.update(self.screen, evts)
 
 
-    def blit_countdown(self, rect):
+    def blit_countdown(self):
         """blit game countdown"""
 
         return self.counter.blit_countdown(self.screen)
 
+
+    def clear_board(self):
+        return [self.screen.blit(self.board_surf, self.board_pos)]
+        
+    def clear_report(self):
+        return [pygame.draw.line(self.screen, BLACK,
+                                 self.side_start, self.side_end, 5),
+                self.screen.blit(self.report_surf, self.report_pos)]
+
+
+    def update(self):
+        """main function to run in an infinite loop"""
+
+        events = pygame.event.get()
+        for event in events:
+            if event.type == pygame.QUIT:
+                exit()
+
+        rects = []
+        cli = self.client
+        #if self.status != "PLAYING" and self.status != "GAMEOVER":
+        if cli.status not in cli.play_status:
+            cli.waiting(0)
+            if cli.names_update:
+                self.update_players()
+                rects += self.clear_board()
+                rects += self.blit_players(False)
+                #cli.print_players()
+
+        if cli.status == "REGISTER":
+            rects += self.blit_name_dialog(events)  #catch name
+        elif cli.status == "WAITING" or cli.status == "READY":
+            rects += self.blit_start_button()   #click start or ready
+            if cli.start_signal:
+                cli.status = "PLAYING"
+                cli.reset_count = True
+
+        elif cli.status == "PLAYING" or cli.status == "WATCHING":
+
+            if cli.playing():  #message, so new state
+                rects += self.clear_board()
+                rects += self.blit_players(True)
+                #cli.print_players()
+
+                cli.start_signal = False      #no more countdown
+                cli.reset_count  = True       #reset counter
+                #change state
+                cli.take_action = not cli.take_action
+                cli.has_printed = False                #print once
+
+                if cli.game_over:
+                    cli.status = "GAMEOVER"    #skip
+                    return
+
+            if cli.start_signal:
+                rects += self.blit_countdown()
+            elif cli.take_action:
+                if cli.status == "PLAYING":
+                    if not cli.has_printed:
+                        os.system('cls' if os.name == 'nt' else 'clear')
+                        self.blit_actions()
+                        #cli.has_printed = True
+                    #cli.catch_action()         #catch action
+                self.blit_zerozero()     #timer done
+            else:
+                if not cli.has_printed:
+                    self.blit_result()
+                    #cli.has_printed = True
+
+        elif cli.status == "GAMEOVER":
+            self.blit_winner()
+            cli.sock.close()
+            return
+
+        if rects:
+            pygame.display.update(rects)
+            self.clock.tick(fps)
+
+
+
+
+
+
+
+
+
+######## old stuff
+
+    
 
 
     def blit_waiting_ready(self, rect):
@@ -815,7 +924,7 @@ class MatchView:
     def blit_report(self):
         """draw on the report side bar"""
         rect = self.screen.blit(self.report_surf, self.report_pos)
-        pygame.draw.line(self.screen, BLACK, self.side_sep[0].xy(), self.side_sep[1].xy(), 5)
+        pygame.draw.line(self.screen, BLACK, self.side_start, self.side_end, 5)
 
         pygame.display.update(rect)
 
@@ -860,71 +969,6 @@ class MatchView:
 
 
 
-
-
-
-
-    def update(self):
-        """main function to run in an infinite loop"""
-
-        rects = []
-        cli = self.client
-        #if self.status != "PLAYING" and self.status != "GAMEOVER":
-        if cli.status not in cli.play_status:
-            cli.waiting()
-            if cli.names_update:
-                self.update_players()
-                rects += self.blit_players()
-                #cli.print_players()
-
-        if cli.status == "REGISTER":
-            rects += self.blit_name_dialog()  #catch name
-        elif cli.status == "WAITING" or cli.status == "READY":
-            rects += self.blit_ready()   #click start or ready
-            if cli.start_signal:
-                cli.status = "PLAYING"
-                cli.reset_count = True
-
-        elif cli.status == "PLAYING" or cli.status == "WATCHING":
-
-            if cli.playing():  #message, so new state
-                #cli.print_players()
-
-                cli.start_signal = False      #no more countdown
-                cli.reset_count  = True       #reset counter
-                #change state
-                cli.take_action = not cli.take_action
-                cli.has_printed = False                #print once
-
-                if cli.game_over:
-                    cli.status = "GAMEOVER"    #skip
-                    return
-
-            if cli.start_signal:
-                self.blit_countdown()
-            elif cli.take_action:
-                if cli.status == "PLAYING":
-                    if not cli.has_printed:
-                        os.system('cls' if os.name == 'nt' else 'clear')
-                        self.blit_actions()
-                        #cli.has_printed = True
-                    #cli.catch_action()         #catch action
-                self.blit_zerozero()     #timer done
-            else:
-                if not cli.has_printed:
-                    self.blit_result()
-                    #cli.has_printed = True
-
-        elif cli.status == "GAMEOVER":
-            self.blit_winner()
-            cli.sock.close()
-            return
-
-        self.screen.update(rects)
-
-
-
-    
 
 #    def update(self):
 #        """main function to run in an infinite loop"""

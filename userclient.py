@@ -48,11 +48,12 @@ class Client:
 #####incoming mail
 
 
-    def waiting(self):
-        """receive list of users and start message"""
+    def waiting(self, t = 1):
+        """receive list of users and start message
+        time is time in second blocking. t = 1 default blocks 1 sec"""
         #print("Client: listening...")
 
-        ready = select.select([self.sock], [], [], 1)
+        ready = select.select([self.sock], [], [], t)   
         if ready[0]:
 
             data = self.sock.recv(1024)
