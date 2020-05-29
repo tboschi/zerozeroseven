@@ -235,7 +235,7 @@ class NameDialog:
         self.name_pos = int(centre[0] - 190), int(centre[1] - 40)
 
 
-    def update(self, surf, evts):
+    def update(self, surf, events):
 
         h  = self.inst.get_height()
         b0 = self.rect_pos[0],  self.rect_pos[1] + h + 20
@@ -255,7 +255,7 @@ class NameDialog:
         #        exit()
 
         name = ""
-        if self.textinput.update(evts):
+        if self.textinput.update(events):
             name = self.textinput.get_text()
 
         return name, [self.rect]
@@ -290,10 +290,13 @@ class StartButton:
         return [self.rect]
 
 
-    def is_ready(self, evts):
+    def is_ready(self, events):
         ret = False
-        if evts.type == pygame.MOUSEBUTTONUP:
-            ret = self.rect.collidepoint(pygame.mouse.get_pos())
+
+        for evt in events:
+            if evt.type == pygame.MOUSEBUTTONUP:
+                ret = self.rect.collidepoint(pygame.mouse.get_pos())
+                break
 
         if ret:
             self.msg = self.ready
@@ -542,7 +545,7 @@ class MatchView:
         #print("start button")
 
         self.startbutt.is_ready(evts)
-        return self.startbutt.update(self.screen, evts)
+        return self.startbutt.update(self.screen)
 
 
     def blit_countdown(self):
@@ -582,7 +585,7 @@ class MatchView:
         if cli.status == "REGISTER":
             rects += self.blit_name_dialog(events)  #catch name
         elif cli.status == "WAITING" or cli.status == "READY":
-            rects += self.blit_start_button()   #click start or ready
+            rects += self.blit_start_button(events)   #click start or ready
             if cli.start_signal:
                 cli.status = "PLAYING"
                 cli.reset_count = True
