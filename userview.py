@@ -33,6 +33,10 @@ class Avatar:
         self.name_surf = self.adjust_name(self.name)
         self.pos = position
 
+        #for main
+        self.defense = 0
+        self.loaded  = 0
+
 
     def set_position(self, position):
         """position is a tuple"""
@@ -159,8 +163,8 @@ class Main(Avatar):
 
     def avatar_name(self):
         """name position is different for main"""
-        w = surf.get_width() 
-        h = surf.get_height() 
+        w = self.name_surf.get_width() 
+        h = self.name_surf.get_height() 
         return (int(self.pos[0] - avatar_size / 2. - w - 10),
                 int(self.pos[1] - avatar_size / 2. + h))
 
@@ -469,6 +473,7 @@ class MatchView:
         main = self.client.main
 
         print ("there are ", len(names))
+        print("main ", main)
 
         if main:
             angle  = 2. * math.pi / len(names)
@@ -484,16 +489,17 @@ class MatchView:
                 t += 1
 
             #k is 0 for main player
-            pos = int(self.radius * math.cos(math.pi/2. + k*angle)), \
-                  int(self.radius * math.sin(math.pi/2. + k*angle))
+            pos = int(self.centre[0]
+                      + self.radius * math.cos(math.pi/2. + k*angle)), \
+                  int(self.centre[1]
+                      + self.radius * math.sin(math.pi/2. + k*angle))
 
             if uid in self.avatars:
                 self.avatars[uid].set_position(pos)
+            elif uid == main:
+                self.avatars[uid] = Main(name, pos)
             else:
-                if uid == main:
-                    self.avatars[uid] = Main(name, pos)
-                else:
-                    self.avatars[uid] = Avatar(name, pos)
+                self.avatars[uid] = Avatar(name, pos)
 
 
 
@@ -505,9 +511,9 @@ class MatchView:
         main = self.client.main
 
         if game:
-            colON, colOFF = GREEN, RED
-        else:
             colON, colOFF = BLACK, GRAY
+        else:
+            colON, colOFF = GREEN, RED
 
         rects = []
         for uid, (name, stat) in names.items():
@@ -519,7 +525,7 @@ class MatchView:
 
             rects += self.avatars[uid].blit_avatar(self.screen, col)
 
-            if uid == main:
+            if game and uid == main:
                 rects += self.avatars[uid].blit_status(self.screen)
             
         return rects    #list of rects to be updated
@@ -544,7 +550,8 @@ class MatchView:
         """print a start button in the centre"""
         #print("start button")
 
-        self.startbutt.is_ready(evts)
+        if self.startbutt.is_ready(evts):
+            self.client.ready_register()
         return self.startbutt.update(self.screen)
 
 
@@ -580,6 +587,7 @@ class MatchView:
                 self.update_players()
                 rects += self.clear_board()
                 rects += self.blit_players(False)
+                cli.names_update = False
                 #cli.print_players()
 
         if cli.status == "REGISTER":
@@ -644,65 +652,65 @@ class MatchView:
     
 
 
-    def blit_waiting_ready(self, rect):
-        """print a ready message in the centre"""
-        print("waiting ready")
+    #def blit_waiting_ready(self, rect):
+    #    """print a ready message in the centre"""
+    #    print("waiting ready")
  
-        #self.blit_waiting_room()
+    #    #self.blit_waiting_room()
 
-        rect_pos = self.centre - Point(100, 50)
-        rect_size = Point(200, 100)
+    #    rect_pos = self.centre - Point(100, 50)
+    #    rect_size = Point(200, 100)
 
-        rect_list = [rect_pos.xy()[0], rect_pos.xy()[1], 
-                     rect_size.xy()[0], rect_size.xy()[1]]
-        r1 = pygame.draw.rect(self.screen, GREEN  , rect_list)
-        r2 = pygame.draw.rect(self.screen, BLACK, rect_list, 5)
+    #    rect_list = [rect_pos.xy()[0], rect_pos.xy()[1], 
+    #                 rect_size.xy()[0], rect_size.xy()[1]]
+    #    r1 = pygame.draw.rect(self.screen, GREEN  , rect_list)
+    #    r2 = pygame.draw.rect(self.screen, BLACK, rect_list, 5)
 
-        ready = self.font32.render("READY", 1, BLACK)
-        ready_pos = self.centre - Point(ready.get_width()/2, ready.get_height()/2)
-        self.screen.blit(ready, ready_pos.xy())
+    #    ready = self.font32.render("READY", 1, BLACK)
+    #    ready_pos = self.centre - Point(ready.get_width()/2, ready.get_height()/2)
+    #    self.screen.blit(ready, ready_pos.xy())
 
-        pygame.display.update(r1)
-        self.clock.tick(fps)
+    #    pygame.display.update(r1)
+    #    self.clock.tick(fps)
 
 
-    def blit_countdown(self, rect):
-        """game is about to start, show count down"""
-        print("ready")
+    #def blit_countdown(self, rect):
+    #    """game is about to start, show count down"""
+    #    print("ready")
 
-        self.blit_players(rect)
+    #    self.blit_players(rect)
 
-        count = 3
-        secs = 3000
-        ready_wh = self.font64.size(str(count))
-        ready_pos = self.centre - Point(ready_wh[0]/2, ready_wh[1]/2)
+    #    count = 3
+    #    secs = 3000
+    #    ready_wh = self.font64.size(str(count))
+    #    ready_pos = self.centre - Point(ready_wh[0]/2, ready_wh[1]/2)
 
-        area = pygame.Rect(ready_pos.xy()[0], ready_pos.xy()[1],
-                           ready_wh[0], ready_wh[1])
-        area.inflate_ip(10, 10)
+    #    area = pygame.Rect(ready_pos.xy()[0], ready_pos.xy()[1],
+    #                       ready_wh[0], ready_wh[1])
+    #    area.inflate_ip(10, 10)
 
-        start = pygame.time.get_ticks()
-        while secs > 0:
-            #sec goes from 0 to 1000
-            sec = (pygame.time.get_ticks() - start) % 1000
-            alpha = int(255 * (1 - sec / 1000.))
+    #    start = pygame.time.get_ticks()
+    #    while secs > 0:
+    #        #sec goes from 0 to 1000
+    #        sec = (pygame.time.get_ticks() - start) % 1000
+    #        alpha = int(255 * (1 - sec / 1000.))
 
-            #print(count, sec, alpha)
+    #        #print(count, sec, alpha)
 
-            ready = self.font64.render(str(count), 1, BLACK, WHITE)
-            #ready = ready.convert()
-            ready.set_alpha(alpha)
+    #        ready = self.font64.render(str(count), 1, BLACK, WHITE)
+    #        #ready = ready.convert()
+    #        ready.set_alpha(alpha)
 
-            pygame.draw.rect(self.screen, WHITE, area)
-            self.screen.blit(ready, ready_pos.xy())
+    #        pygame.draw.rect(self.screen, WHITE, area)
+    #        self.screen.blit(ready, ready_pos.xy())
 
-            pygame.display.update(area)
-            self.clock.tick(fps)
+    #        pygame.display.update(area)
+    #        self.clock.tick(fps)
 
-            if pygame.time.get_ticks() - start > 1000:
-                start = pygame.time.get_ticks()
-                secs -= 1000
-                count -= 1
+    #        if pygame.time.get_ticks() - start > 1000:
+    #            start = pygame.time.get_ticks()
+    #            secs -= 1000
+    #            count -= 1
 
 
 #############################

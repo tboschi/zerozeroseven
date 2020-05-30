@@ -252,9 +252,9 @@ class GameServer:
                 tt = next(cdown)
             except StopIteration:
                 break
-            else:
-                if tt is not None:
-                    print(tt)
+            #else:
+            #    if tt is not None:
+            #        print(tt)
 
 
     ######################################
