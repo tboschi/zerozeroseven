@@ -207,13 +207,20 @@ class Client:
 
 
     def update_players(self, book):
-        """this is done only during the game action"""
+        """this is done only during the game action
+        return name of dead players"""
+        over = []
         if isinstance(book, str):
             for uid, (name, stat) in self.names.items():
                 if chr(uid) in book:
                     self.names[uid] = (name, True)
                 else:
                     self.names[uid] = (name, False)
+
+                if not self.names[uid][1]:
+                    over.append(name)
+
+        return over
 
 
     def name_register(self, name):
@@ -339,10 +346,9 @@ class Client:
                 print(f"\t{self.names[n][0]} is loading")
 
         print("\t--------------------------")
-        self.update_players(self.ingame)
-        for name, stat in self.names.values():
-            if not stat:
-                print(f"\t{name} is dead")
+        over = self.update_players(self.ingame)
+        for name in over:
+            print(f"\t{name} is dead")
             #if chr(uid) not in self.ingame:
             #self.names[uid] = (name, False)
         
@@ -460,6 +466,8 @@ class Client:
             if tt is not None:
                 print("zero")
             return True     #timer active
+
+
 
 
 if __name__ == "__main__":

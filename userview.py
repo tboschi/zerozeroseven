@@ -445,7 +445,6 @@ class Counter:
             return self.text, now / self.dt
 
 
-
     def blit_countdown(self, surf):
         """print countdown with changing alpha at centre"""
         text, sec = self.countdown()     #text and time
@@ -472,8 +471,7 @@ class Counter:
         return [self.area]
 
 
-
-    def clear(self, surf, text):
+    def end(self, surf, text):
         msg     = self.font64.render(text, 1, BLACK, WHITE)
         msg_pos = int(self.centre[0] - msg.get_width()/2.), \
                   int(self.centre[1] - msg.get_height()/2.)
@@ -484,10 +482,97 @@ class Counter:
         return [r.union(self.area)]
 
 
+    def clear(self, surf, text):
+        w, h = self.font64.size(text)
+        area = pygame.Rect(int(self.centre[0] - w/2. - 10),
+                           int(self.centre[1] - h/2. - 10), 
+                           w + 20, h + 20)
+        return [pygame.draw.rect(surf, WHITE, area)]
 
 
 
-#### main class
+class Logger:
+
+    def __init__(self, left, top, width, height):
+        """Logger is basically a Rect.."""
+        self.rect = pygame.Rect(left, top, width, height)
+
+        self.tl = int(left), int(top)                           #this is top left
+        self.ml = int(left), int(top + height/2.)               #this is mid left
+        self.bl = int(left), int(top + height)                  #this is bot left
+
+        self.tc = int(left + width/2.), int(top)                #this is top centre
+        self.mc = int(left + width/2.), int(top + height/2.)    #this is mid centre
+        self.bc = int(left + width/2.), int(top + height)       #this is bot centre
+
+        self.tr = int(left + width), int(top)                   #this is top right
+        self.mr = int(left + width), int(top + height/2.)       #this is mid right
+        self.br = int(left + width), int(top + height)          #this is bot right
+
+        self.area = pygame.Surface((width, height))
+        self.area.fill(WHITE)
+
+        self.font32 = pygame.font.SysFont(None, 32)
+        self.font48 = pygame.font.SysFont(None, 48)
+
+
+    def blit_separator(self, surf):
+        return pygame.draw.line(surf, BLACK, self.tl, self.bl, 5)
+
+
+    def clear(self, surf):
+        """clear space"""
+        return [surf.blit(self.area, self.tl), self.blit_separator(surf)]
+
+
+    def blit_round(self, surf, n):
+        """blit round number"""
+
+        rn = self.font48.render("ROUND " + str(n), 1, BLACK)
+        rn_pos = int(self.tc[0] - rn.get_width() / 2.), \
+                 int(self.tc[1] + 2 * rn.get_height())
+
+        return [surf.blit(rn, rn_pos)]
+
+
+    def blit_result(self, surf, result):
+        """blit round number
+        result is a list of things happened"""
+
+        allres = [self.font32.render(text, 1, BLACK) for text in result]
+
+        shift = 10
+        h = sum(text.get_height() + shift for text in allres)
+        h -= shift
+
+        rects = []
+        for i, text in enumerate(allres):
+            pos = int(self.ml[0] + shift), \
+                  int(self.ml[1] - h / 2. + i * (shift + text.get_height()))
+            rects.append(surf.blit(text, pos))
+
+        return rects
+
+
+    def blit_over(self, surf, over):
+        """blit round number
+        result is a list of dead people"""
+
+        allres = [self.font32.render(text + " is dead", 1, BLACK) for text in over]
+
+        shift = 10
+
+        rects = []
+        for i, text in enumerate(allres):
+            pos = int(self.bl[0] + shift), \
+                  int(self.bl[1] - (i + 1) * (shift + text.get_height()))
+            rects.append(surf.blit(text, pos))
+
+        return rects
+
+
+
+#### main class, mainly draw board but also logger on side-bar
 
 class MatchView:
     """build GUI for one single client and handles communication
@@ -521,14 +606,9 @@ class MatchView:
         self.board_surf.fill(WHITE)
 
 
-        self.side_bar = abs(width - height)
-        self.side_start = width - self.side_bar, 0
-        self.side_end   = width - self.side_bar, height
-        
-        self.report_pos  = (height, 0)
-        self.report_size = (self.side_bar, height)
-        self.report_surf = pygame.Surface(self.report_size)
-        self.report_surf.fill(WHITE)
+        #side bar space for logging and messages
+        side_bar = abs(width - height)
+        self.logger = Logger(height, 0, side_bar, height)
 
 
         #now define margins
@@ -537,14 +617,18 @@ class MatchView:
         self.lmargin = 10 + avatar_size/2.
         self.rmargin = 10 + avatar_size/2.
 
-        self.radius = 0.5 * min(width - self.side_bar
+        self.radius = 0.5 * min(width - side_bar
                                 - self.lmargin - self.rmargin,
                                 height - self.tmargin - self.bmargin)
-        self.centre = int(.5 * (width - self.side_bar - self.lmargin
+        self.centre = int(.5 * (width - side_bar - self.lmargin
                                 + self.rmargin)), \
                       int(.5 * (height + self.tmargin - self.bmargin))
 
         #useful objects
+
+        #counter
+        self.counter   = Counter(self.centre)
+
         #ready button, name dialog, counter
         self.startbutt = StartButton(self.centre)
         self.name_dial = NameDialog(self.centre)
@@ -560,8 +644,7 @@ class MatchView:
         #first blitting
         #draw play game for the first time
         self.screen.blit(self.board_surf, self.board_pos)
-        self.screen.blit(self.report_surf, self.report_pos)
-        pygame.draw.line(self.screen, BLACK, self.side_start, self.side_end, 5)
+        self.logger.clear(self.screen)
         pygame.display.flip()
 
 
@@ -632,7 +715,6 @@ class MatchView:
         return rects    #list of rects to be updated
 
 
-
     def blit_name_dialog(self, evts):
         """name dialog stays on until name is given"""
         #print("name dialog")
@@ -643,8 +725,6 @@ class MatchView:
             self.client.name_register(name)
 
         return rects
-
-
 
 
     def blit_start_button(self, evts):
@@ -673,16 +753,24 @@ class MatchView:
         """blit game countdown"""
         print("seven!")
 
+        return self.counter.end(self.screen, text)
+
+
+    def blit_no_count(self, text):
+        """blit game countdown"""
+        print("seven!")
+
         return self.counter.clear(self.screen, text)
 
 
     def blit_available_actions(self):
         """blit available actions"""
 
-        main = self.client.main
-        act  = self.client.actions
-        others = {uid : avt.pos for uid, avt in self.avatars.items()
-                                    if uid != main}
+        names = self.client.names
+        main  = self.client.main
+        act   = self.client.actions
+        others = {uid : self.avatars[uid].pos
+                  for uid, (_, stat) in names.items() if uid != main and stat}
 
         rects, self.tag_uid = self.avatars[main].blit_actions(self.screen,
                                                               act, others)
@@ -722,7 +810,7 @@ class MatchView:
 
 
     def blit_result(self):
-        """report result on board"""
+        """report result on board and on sidebar"""
 
         report = self.client.report
         print("result", report)
@@ -743,15 +831,12 @@ class MatchView:
             a = ord(a)
             t = ord(t)
             if a == t:
-                #print(f"\t{self.names[a][0]} is defending")
                 shields.append(a)
             else:
-                #print(f"\t{self.names[a][0]} is shooting {self.names[t][0]}")
                 fires.append((a, t))
             loads.remove(a)
 
-        #for n in loaders:
-        #rn = ord(report[0])  #round number
+
         #print(f"\nRound {r}")
 
         #for a in self.report:
@@ -773,23 +858,33 @@ class MatchView:
         #    self.status = "WATCHING"
 
 
-        #update list of players
-        self.client.update_players(self.client.ingame)
-
         #rects += self.avatars[uid].blit_avatar(self.screen, col)
 
+        result  = []
         #shooting lines
         for id0, id1 in fires:
+            result.append(f"{names[id0][0]} is shooting {names[id1][0]}")
             rects += self.avatars[id0].blit_fire(self.screen,
                                                  self.avatars[id1].pos)
 
         #defending
         for id0 in shields:
+            result.append(f"{names[id0][0]} is defending")
             rects += self.avatars[id0].blit_shield(self.screen)
 
         #loading
         for id0 in loads:
+            result.append(f"{names[id0][0]} is loading")
             rects += self.avatars[id0].blit_load(self.screen)
+
+
+        #update list of players
+        over = self.client.update_players(self.client.ingame)
+
+
+        rects += self.logger.blit_round(self.screen, ord(report[0]))  #round number
+        rects += self.logger.blit_result(self.screen, result)
+        rects += self.logger.blit_over(self.screen, over)
 
         return rects
 
@@ -797,18 +892,17 @@ class MatchView:
     def blit_winner(self):
         """print name of winner"""
         winner = self.client.names[self.client.winner][0]
-        print("the winner is:", winner)
 
-        font32 = pygame.font.SysFont(None, 32)
+        font48 = pygame.font.SysFont(None, 48)
         font64 = pygame.font.SysFont(None, 64)
 
-        winn = font32.render("The winner is:", 1, BLACK)
-        name = font32.render(winner, 1, BLACK)
+        winn = font48.render("The winner is:", 1, BLACK)
+        name = font64.render(winner, 1, BLACK)
 
         winn_pos = int(self.centre[0] - winn.get_width()/2.), \
-                   int(self.centre[1] - winn.get_height()/2.)
+                   int(self.centre[1] - winn.get_height()/2. - name.get_height())
         name_pos = int(self.centre[0] - name.get_width()/2.), \
-                   int(self.centre[1] - 2 * name.get_width() - winn.get_height()/2.)
+                   int(self.centre[1] - name.get_height()/2.)
 
         rects = []
         rects.append(self.screen.blit(winn, winn_pos))
@@ -836,18 +930,12 @@ class MatchView:
             self.client.stage_action(chr(self.choice))
 
 
-
-
     def clear_board(self):
-        print("clear board")
         return [self.screen.blit(self.board_surf, self.board_pos)]
 
-        
     def clear_report(self):
-        return [pygame.draw.line(self.screen, BLACK,
-                                 self.side_start, self.side_end, 5),
-                self.screen.blit(self.report_surf, self.report_pos)]
-
+        return self.logger.clear(self.screen)
+        
 
     def update(self):
         """main function to run in an infinite loop"""
@@ -884,8 +972,10 @@ class MatchView:
         #last state, but order is weird because need to use final 'else'
         elif cli.status == "GAMEOVER":
             if not self.has_printed:
-                self.blit_winner()
+                rects += self.blit_no_count("seven")
+                rects += self.blit_winner()
                 cli.sock.close()
+                self.has_printed = True
 
         else:   #cli.status == "PLAYING" or cli.status == "WATCHING"
 
@@ -919,6 +1009,7 @@ class MatchView:
                 rects += self.blit_countdown()
             else:
                 if not self.has_printed:
+                    rects += self.clear_report()
                     rects += self.blit_end_count("seven")
                     rects += self.blit_result()
                     self.has_printed = True
