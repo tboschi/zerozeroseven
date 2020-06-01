@@ -249,12 +249,12 @@ class GameServer:
         cdown = count.down(3)
         while True:
             try:
-                tt = next(cdown)
+                tt, dt = next(cdown)
             except StopIteration:
                 break
-            #else:
-            #    if tt is not None:
-            #        print(tt)
+            else:
+                if tt is not None:
+                    print(tt)
 
 
     ######################################
