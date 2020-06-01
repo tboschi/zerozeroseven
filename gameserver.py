@@ -338,6 +338,7 @@ class GameServer:
         AB      player A is shooting player B
         """
 
+        to_remove = set()  #staged messages to be removed because faulty
         print(self.staged)
         for uid, p in self.players.items():
             if uid not in self.clients:     #this is a bot
@@ -350,13 +351,18 @@ class GameServer:
             #real client has sent non empty message
             elif uid in self.staged: # and self.staged[uid] is not None:
                 if uid == self.staged[uid]:
-                    p.shield()
+                    if not p.shield():  #commit did not work, wrong message
+                        to_remove.add(uid)
                 else:
                     t = self.players[self.staged[uid]]
-                    p.fire(t)
-            else:       #empty staged message
-                p.load()
+                    if not p.fire(t):
+                        to_remove.add(uid)
+            else:   #empty staged message
+                if not p.load():
+                    to_remove.add(uid)
 
+        for uid in to_remove:
+            del self.staged[uid]
 
 
     ######################################

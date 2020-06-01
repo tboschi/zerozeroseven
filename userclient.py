@@ -346,7 +346,7 @@ class Client:
             #if chr(uid) not in self.ingame:
             #self.names[uid] = (name, False)
         
-        if not self.names[self.main][1]:     #main status
+        if self.is_gameover():     #main status
             print("You are dead!")
             self.status = "WATCHING"
 
@@ -361,6 +361,11 @@ class Client:
             print(f"the winner is {name}")
         else:
             print("no one has won")
+
+
+    def is_gameover(self):
+        """return true if main has lost"""
+        return not self.names[self.main][1]     #main status
 
 
 

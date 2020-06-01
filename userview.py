@@ -287,10 +287,10 @@ class Main(Avatar):
             for uid, pos in others.items():
 
                 tag_uid[tags[t]] = uid
-                tag_text = font64.render(t, 1, WHITE)
+                tag_text = font64.render(tags[t], 1, WHITE)
 
-                pos[0] = int(pos[0] - tag_text.get_width()/2.)
-                pos[1] = int(pos[1] - tag_text.get_height()/2.)
+                pos = int(pos[0] - tag_text.get_width()/2.), \
+                      int(pos[1] - tag_text.get_height()/2.)
 
                 rects.append(surf.blit(tag_text, pos))
 
@@ -313,7 +313,7 @@ class Main(Avatar):
             rects.append(surf.blit(act, act_pos))
 
 
-        return rects
+        return rects, tag_uid
 
 
 
@@ -438,7 +438,7 @@ class Counter:
         try:
             tt, now = next(self.cdown)
         except StopIteration:   #stop iteration, don't call this anymore
-            return False
+            return "", 0
         else:
             if tt is not None:
                 self.text = self.words.pop(0)
@@ -449,6 +449,9 @@ class Counter:
     def blit_countdown(self, surf):
         """print countdown with changing alpha at centre"""
         text, sec = self.countdown()     #text and time
+
+        if not text and not sec:
+            return [None]
 
         ready_wh = self.font64.size(text)
         ready_pos = (int(self.centre[0] - ready_wh[0] / 2.),
@@ -482,11 +485,9 @@ class Counter:
 
 
 
-class Logger:
-    def __init__(self):
-        pass
 
 
+#### main class
 
 class MatchView:
     """build GUI for one single client and handles communication
@@ -506,10 +507,6 @@ class MatchView:
 
         #initialize pygame clock
         self.clock = pygame.time.Clock()
-
-        self.font32 = pygame.font.SysFont(None, 32)
-        self.font48 = pygame.font.SysFont(None, 48)
-        self.font64 = pygame.font.SysFont(None, 64)      #large font
 
         #initialize graphics
         #surface
@@ -547,6 +544,7 @@ class MatchView:
                                 + self.rmargin)), \
                       int(.5 * (height + self.tmargin - self.bmargin))
 
+        #useful objects
         #ready button, name dialog, counter
         self.startbutt = StartButton(self.centre)
         self.name_dial = NameDialog(self.centre)
@@ -555,22 +553,11 @@ class MatchView:
 
         #dict of avatars, including position -> {tag : Avatar}
         self.avatars = dict()
+        self.tag_uid = dict()
 
 
-        #self.name = ""
-        self.client_ready = False
-        self.game_started = False
-        self.game_starting = False
-        #self.take_action = False
 
-        self.action = ""
-        self.report = ""
-        #self.shield = 3
-        #self.loaded = False
-
-        #self.tags = "1234567890qwertyuiop"
-        #self.tag_uid = dict()
-
+        #first blitting
         #draw play game for the first time
         self.screen.blit(self.board_surf, self.board_pos)
         self.screen.blit(self.report_surf, self.report_pos)
@@ -690,14 +677,47 @@ class MatchView:
 
 
     def blit_available_actions(self):
-        """blit game countdown"""
+        """blit available actions"""
 
         main = self.client.main
         act  = self.client.actions
         others = {uid : avt.pos for uid, avt in self.avatars.items()
                                     if uid != main}
 
-        return self.avatars[main].blit_actions(self.screen, act, others)
+        rects, self.tag_uid = self.avatars[main].blit_actions(self.screen,
+                                                              act, others)
+
+        #clear previous choice
+        self.choice = None
+        self.choice_rect = None
+
+
+        return rects
+
+
+    def blit_current_choice(self):
+        """blit current choice"""
+
+        if self.choice == self.client.main and '#' in self.client.actions:
+            act = "DEFEND"
+        elif self.choice in self.client.names and '!' in self.client.actions:
+            act = "SHOOTING " + self.client.names[self.choice][0]
+        elif '*' in self.client.actions:
+            act = "LOADING"
+
+        font48 = pygame.font.SysFont(None, 48)
+        text = font48.render(act, 1, BLUE)
+        pos  = int(self.centre[0] - text.get_width() / 2.), \
+               int(self.centre[1] - text.get_height() - 100)
+
+        if self.choice_rect:
+            #clear old choice
+            pygame.draw.rect(self.screen, WHITE, self.choice_rect)
+            self.choice_rect.union_ip(self.screen.blit(text, pos))
+        else:
+            self.choice_rect = self.screen.blit(text, pos)
+
+        return [self.choice_rect]
 
 
 
@@ -718,7 +738,7 @@ class MatchView:
         #a and t are consecutive characters
         fires   = []
         shields = []
-        loads   = [uid for uid, (_, stat) in names.keys() if stat]
+        loads   = [uid for uid, (_, stat) in names.items() if stat]
         for a, t in zip(report[1::2], report[2::2]):
             a = ord(a)
             t = ord(t)
@@ -774,6 +794,49 @@ class MatchView:
         return rects
 
 
+    def blit_winner(self):
+        """print name of winner"""
+        winner = self.client.names[self.client.winner][0]
+        print("the winner is:", winner)
+
+        font32 = pygame.font.SysFont(None, 32)
+        font64 = pygame.font.SysFont(None, 64)
+
+        winn = font32.render("The winner is:", 1, BLACK)
+        name = font32.render(winner, 1, BLACK)
+
+        winn_pos = int(self.centre[0] - winn.get_width()/2.), \
+                   int(self.centre[1] - winn.get_height()/2.)
+        name_pos = int(self.centre[0] - name.get_width()/2.), \
+                   int(self.centre[1] - 2 * name.get_width() - winn.get_height()/2.)
+
+        rects = []
+        rects.append(self.screen.blit(winn, winn_pos))
+        rects.append(self.screen.blit(name, name_pos))
+
+        return rects
+
+
+    def catch_action(self, events):
+        """keyboard input for decision"""
+
+        if events:
+            print("there are", len(events))
+
+        for evt in events:
+            if evt.type == pygame.KEYDOWN:
+
+                if evt.key == pygame.K_SPACE:
+                    self.choice = self.client.main
+
+                elif evt.unicode in self.tag_uid:
+                    self.choice = self.tag_uid[evt.unicode]
+
+        if self.choice is not None:
+            self.client.stage_action(chr(self.choice))
+
+
+
 
     def clear_board(self):
         print("clear board")
@@ -818,7 +881,13 @@ class MatchView:
             else:
                 rects += self.blit_start_button(events)   #click start or ready
 
-        elif cli.status == "PLAYING" or cli.status == "WATCHING":
+        #last state, but order is weird because need to use final 'else'
+        elif cli.status == "GAMEOVER":
+            if not self.has_printed:
+                self.blit_winner()
+                cli.sock.close()
+
+        else:   #cli.status == "PLAYING" or cli.status == "WATCHING"
 
             if cli.playing():  #message, so new state
                 rects += self.clear_board()
@@ -826,49 +895,41 @@ class MatchView:
                 #cli.print_players()
 
                 #define game status, if actions or countdown
-                cli.start_signal = False      #no more countdown
-                #cli.reset_count  = True       #reset counter
+                cli.start_signal = False                #no more countdown
+                cli.take_action = not cli.take_action   #change state
                 self.counter.reset("zero zero")
-                #change state
-                cli.take_action = not cli.take_action
-                cli.has_printed = False                #print once
+
+                self.has_printed = False                #print once
 
                 if cli.game_over:
                     cli.status = "GAMEOVER"    #skip
                     return
 
-            if cli.start_signal:
+            if cli.start_signal:    #this is initial countdown (3, 2, 1)
                 rects += self.blit_countdown()
             elif cli.take_action:
                 if cli.status == "PLAYING":
-                    if not cli.has_printed:  #only update once
+                    if not self.has_printed:  #only update once
                         rects += self.blit_available_actions()
-                        cli.has_printed = True
-                    #cli.catch_action()         #catch action
+                        self.has_printed = True
+                    self.catch_action(events)         #catch action
+                    rects += self.blit_current_choice()
+
+                #else just watching
                 rects += self.blit_countdown()
             else:
-                if not cli.has_printed:
+                if not self.has_printed:
                     rects += self.blit_end_count("seven")
                     rects += self.blit_result()
-                    cli.status = "WATCHING"
-                    cli.has_printed = True
+                    self.has_printed = True
+
+                if cli.is_gameover():
+                    cli.status = "WATCHING"  #only if main dead
 
 
-        elif cli.status == "GAMEOVER":
-            self.blit_winner()
-            cli.sock.close()
-            return
-
-
-        if rects:
-            print("rects:", rects)
-            types = [type(r) for r in rects]
-            print(types)
+        if rects:   #update screen
             pygame.display.update(rects)
             self.clock.tick(fps)
-        print("end")
-
-
 
 
 
@@ -1064,41 +1125,41 @@ class MatchView:
 ########################## update main board
 
 
-    def blit_board(self):
-        """refresh is done in individual blocks"""
-        #draw basic stuff
-
-        #self.screen.fill(WHITE)
-        #rect is the rectangle to be updated
-        rect = self.screen.blit(self.board_surf, self.board_pos)
-
-        if not self.game_started:
-
-            #waiting room but name not set
-
-            self.blit_waiting_room(rect)
-            if not self.name:
-                self.blit_name_dialog(rect) #pop up dialog for name input
-            #elif not self.name_sent:
-            #    self.send_name()  #client send name to server
-            #    self.name_sent = True
-            elif not self.client_ready:
-                self.blit_start_button(rect)
-            elif not self.game_starting:
-                self.blit_waiting_ready(rect)
-            else:
-                self.blit_ready(rect)
-
-        else:
-
-            if self.actions:
-                self.blit_players(rect)
-                self.blit_actions(rect)
-                self.blit_countdown(rect)
-            else:
-                self.blit_players(rect)
-                self.blit_result(rect)
-
+#    def blit_board(self):
+#        """refresh is done in individual blocks"""
+#        #draw basic stuff
+#
+#        #self.screen.fill(WHITE)
+#        #rect is the rectangle to be updated
+#        rect = self.screen.blit(self.board_surf, self.board_pos)
+#
+#        if not self.game_started:
+#
+#            #waiting room but name not set
+#
+#            self.blit_waiting_room(rect)
+#            if not self.name:
+#                self.blit_name_dialog(rect) #pop up dialog for name input
+#            #elif not self.name_sent:
+#            #    self.send_name()  #client send name to server
+#            #    self.name_sent = True
+#            elif not self.client_ready:
+#                self.blit_start_button(rect)
+#            elif not self.game_starting:
+#                self.blit_waiting_ready(rect)
+#            else:
+#                self.blit_ready(rect)
+#
+#        else:
+#
+#            if self.actions:
+#                self.blit_players(rect)
+#                self.blit_actions(rect)
+#                self.blit_countdown(rect)
+#            else:
+#                self.blit_players(rect)
+#                self.blit_result(rect)
+#
             #self.report = ''    #clear report as need to get this
             #self.actions = ''   #clear actions
 
@@ -1106,51 +1167,16 @@ class MatchView:
 ########################## update sidebar
 
 
-    def blit_report(self):
-        """draw on the report side bar"""
-        rect = self.screen.blit(self.report_surf, self.report_pos)
-        pygame.draw.line(self.screen, BLACK, self.side_start, self.side_end, 5)
+    #def blit_report(self):
+    #    """draw on the report side bar"""
+    #    rect = self.screen.blit(self.report_surf, self.report_pos)
+    #    pygame.draw.line(self.screen, BLACK, self.side_start, self.side_end, 5)
 
-        pygame.display.update(rect)
+    #    pygame.display.update(rect)
 
 
 
 ########################## handle user events for mouse or keyboard
-
-
-    def handle_events(self):
-        
-        action = ''
-        
-        allevents = pygame.event.get()
-        print(f"there are {len(allevents)} events")
-        print(allevents)
-        for event in allevents:
-            #quit if the quit button was pressed
-            if event.type == pygame.QUIT:
-                exit()
-
-            if event.type == pygame.MOUSEBUTTONUP:
-
-                mouse = pygame.mouse.get_pos()
-                if self.ready_butt and self.ready_butt.collidepoint(mouse):
-                    self.client_ready = True
-                    #name, _ = self.pl_names[self.main]
-                    self.add_player(self.main, status=True)
-                    self.ready_butt = None
-                    self.client.send_ready()
-
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    action = chr(self.main)
-                    print("actions will be defend")
-                elif event.unicode in self.tag_uid:
-                    action = chr(self.tag_uid[event.unicode])
-                    print(f"actions will be {event.unicode}")
-
-        if not action:
-            print(f"actions will be load")
-        self.client.stage_action(action)
 
 
 
