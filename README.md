@@ -50,6 +50,7 @@ I will make the choice of address and port more user friendly.
 ## GUI
 
 There is a functioning GUI version as well, based on [pygame](https://www.pygame.org/wiki/GettingStarted).
+It uses [pygame_textinput](https://github.com/Nearoo/pygame-text-input).
 
 If there is a server running somewhere, just run the GUI with
 ```bash
