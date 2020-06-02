@@ -181,7 +181,6 @@ class TextInput:
 
 
 if __name__ == "__main__":
-    from point import Point
 
     pygame.init()
 

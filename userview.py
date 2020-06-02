@@ -1,4 +1,4 @@
-from point import Point
+#from point import Point
 from userclient import Client
 
 
@@ -1315,7 +1315,8 @@ if __name__ == "__main__":
 
     #address = sys.argv[1]
     #host, _, port = address.partition(':')
-    address = socket.gethostname() + ":5000"
+    #address = socket.gethostname() + ":5000"
+    address = "192.168.1.6:5000"
     cli = Client(address)
 
     view = MatchView(cli)
