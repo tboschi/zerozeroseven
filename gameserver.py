@@ -19,7 +19,7 @@ class GameServer:
     This allows the use of a single 8-bit char to represent a player
     """
 
-    def __init__(self):
+    def __init__(self, hostport):
         self.connections = dict()   #fd, (sock, addr)
 
         self._uid = set()
@@ -32,8 +32,7 @@ class GameServer:
 
 
         #server stuff
-        host = socket.gethostname()
-        port = 5000
+        host, _, port = hostport.partition(':')
         self.engine = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.engine.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -495,7 +494,9 @@ class GameServer:
 if __name__ == "__main__":
     import sys
 
-    match = GameServer()
+    address = socket.gethostname() + ":5000"
+
+    match = GameServer(address)
     if len(sys.argv) > 1:
         match.set_bots(sys.argv[1])
 

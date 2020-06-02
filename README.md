@@ -33,6 +33,27 @@ This program is an online implementation of the zero zero seven game, written in
 It relies on a simple client--server model to connect the players between each other and make decisions.
 The client command line version works on python3 with linux.
 
-## Future
+Run first the server
+```bash
+python gameserver.py <n>
+```
+where ```n``` is an optional number of bot players which take choices randomly.
 
-I am working on a GUI version with pygame.
+After that run the client
+```bash
+python userclient.py
+```
+which connects to the server.
+The server runs by default on ```localhost:5000```. To change the port, just modify the python script under the ```main section```.
+I will make the choice of address and port more user friendly.
+
+## GUI
+
+There is a functioning GUI version as well, based on [pygame](https://www.pygame.org/wiki/GettingStarted).
+
+If there is a server running somewhere, just run the GUI with
+```bash
+python userview.py
+```
+By default it connects to ```localhost:5000```.
+A user friendly choice of address will be added soon.

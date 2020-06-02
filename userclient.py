@@ -13,13 +13,14 @@ class Client:
     this class deals with connections only """
 
 
-    def __init__(self, addr, port):
+    def __init__(self, hostpost):
         """client needs a address and port to creates
         a select for incoming messages"""
 
+        host, _, port = hostport.partition(':')
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect((addr, port))  # bind host address and port together
+        self.sock.connect((host, port))  # bind host address and port together
         #self.sock.setblocking(0)
 
         self.names = None
@@ -475,9 +476,8 @@ if __name__ == "__main__":
     
     #address = sys.argv[1]
     #host, _, port = address.partition(':')
-    host = socket.gethostname()
-    port = 5000
-    cli = Client(host, port)
+    address = socket.gethostname() + ":5000"
+    cli = Client(address)
 
     while cli.update():
         pass
