@@ -57,3 +57,6 @@ python userview.py
 ```
 By default it connects to ```localhost:5000```.
 A user friendly choice of address will be added soon.
+
+![Example of GUI running](/zerozeroseven.gif)
+

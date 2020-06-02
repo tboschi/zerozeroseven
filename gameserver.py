@@ -37,7 +37,7 @@ class GameServer:
         self.engine.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         self.engine.setblocking(False)  # non blocking socket
-        self.engine.bind((host, port))  # bind host address and port together
+        self.engine.bind((host, int(port)))  # bind host address and port together
 
         self.engine.listen(256)         #ready for max 256 new connections
 

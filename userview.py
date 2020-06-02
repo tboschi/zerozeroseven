@@ -1315,9 +1315,8 @@ if __name__ == "__main__":
 
     #address = sys.argv[1]
     #host, _, port = address.partition(':')
-    host = socket.gethostname()
-    port = 5000
-    cli = Client(host, port)
+    address = socket.gethostname() + ":5000"
+    cli = Client(address)
 
     view = MatchView(cli)
 
