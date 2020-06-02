@@ -21,7 +21,7 @@ RED   = (255,   0,   0)
 fps = 30
 tags = "1234567890qwertyuiop"
 
-width, height = 960, 720
+width, height = 1000, 700
 avatar_size = 100   #circle for player
 shield_size = 60    #triangle for shielding action
 loaded_size = 50    #rectangle for loading
@@ -55,9 +55,7 @@ class Avatar:
             name_size -= 1
 
             font = pygame.font.SysFont(None, name_size)
-            w, h = font.size(title)
-
-            font = pygame.font.SysFont(None, font_size)
+            w, h = font.size(name)
 
         return font.render(name, 1, BLACK)
 
@@ -530,7 +528,7 @@ class Logger:
 
         rn = self.font48.render("ROUND " + str(n), 1, BLACK)
         rn_pos = int(self.tc[0] - rn.get_width() / 2.), \
-                 int(self.tc[1] + 2 * rn.get_height())
+                 int(self.tc[1] + rn.get_height())
 
         return [surf.blit(rn, rn_pos)]
 
@@ -700,6 +698,7 @@ class MatchView:
             colON, colOFF = GREEN, RED
 
         rects = []
+        waits = []
         for uid, (name, stat) in names.items():
 
             if stat:
@@ -707,11 +706,17 @@ class MatchView:
             else:
                 col = colOFF    #player is not ready/dead
 
+            #blit avatar
             rects += self.avatars[uid].blit_avatar(self.screen, col)
 
-            if game and uid == main:
+            if not game:
+                #blit waiting room before game
+                waits.append(name + (" is ready" if stat else " has connected"))
+            elif uid == main:
+                #blit status bar during game
                 rects += self.avatars[uid].blit_status(self.screen, act)
             
+        rects += self.logger.blit_result(self.screen, waits)
         return rects    #list of rects to be updated
 
 
@@ -914,9 +919,6 @@ class MatchView:
     def catch_action(self, events):
         """keyboard input for decision"""
 
-        if events:
-            print("there are", len(events))
-
         for evt in events:
             if evt.type == pygame.KEYDOWN:
 
@@ -954,6 +956,7 @@ class MatchView:
             if cli.names_update:
                 self.update_players()
                 rects += self.clear_board()
+                rects += self.clear_report()
                 rects += self.blit_players(False)
                 cli.names_update = False
                 #cli.print_players()
