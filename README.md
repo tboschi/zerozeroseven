@@ -58,5 +58,23 @@ python userview.py
 By default it connects to ```localhost:5000```.
 A user friendly choice of address will be added soon.
 
+### Explanation of GUI and game interface
+
+Each player is represented by a black circle.
+There are three main symbols used in the interface:
+* a red circle, representing a fire action
+* a blue triangle, representing a defend action
+* a green rectangle, representing a load action
+
+When shooting between players is in place, a red line connects the players involved.
+The current player is always at the bottom of the screen and there is a status bar on its right.
+
+During the ```zero zero``` phase, the current player has to take an action:
+* the default action is to load and no key must be pressed to do this
+* if it can shoot, press the key assigned to an opponent to shoot it
+* if it can defend, press spacebar to defend
+
+The choice of action can be changed as long as the ```zero zero``` phase is on.
+
 ![Example of GUI running](/zerozeroseven.gif)
 
