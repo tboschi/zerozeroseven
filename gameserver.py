@@ -1,5 +1,4 @@
-from player import Player
-from client import Client
+import zerozeroseven as zzs
 
 import time
 import socket
@@ -12,7 +11,7 @@ import count
 READ_ONLY = select.POLLIN | select.POLLPRI | select.POLLHUP | select.POLLERR
 
 class GameServer:
-    """engine of 007 game
+    """server for engine of 007 game
 
     contains a list of clients with uuid 
     in self.clients, which has a max length of 256 = #ff
@@ -26,48 +25,23 @@ class GameServer:
         #dictionary of user connected to server
         self.clients = dict()       #uid, fd
         #dictionary of all named players (bot included)
-        self.names = dict()         #uid, (name, status)
+        self.names = dict()         #uid, (name, status)    to meet clients
         self.staged = dict()        #uid, action
         self.players = dict()       #uid, Player()
 
 
         #server stuff
         host, _, port = hostport.partition(':')
-        self.engine = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.engine.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        self.engine.setblocking(False)  # non blocking socket
-        self.engine.bind((host, int(port)))  # bind host address and port together
+        self.server.setblocking(False)  # non blocking socket
+        self.server.bind((host, int(port)))  # bind host address and port together
 
-        self.engine.listen(256)         #ready for max 256 new connections
+        self.server.listen(256)         #ready for max 256 new connections
 
         self.poller  = select.poll()    #incoming data on socket
-        self.poller.register(self.engine, READ_ONLY)
-
-
-    def new_uid(self):
-        """return unique id, but max of id are 256"""
-        for i in range(256):
-            if i not in self._uid:
-                self._uid.add(i)
-                return i
-        else:
-            return None
-
-
-    def del_uid(self, i):
-        """remove any trace of uid 'i'"""
-        #remove from clients
-        if i in self.clients:
-            del self.clients[i]
-
-        #remove from names
-        if i in self.names:
-            del self.names[i]
-
-        #finally remove from set
-        if i in self._uid:
-            self._uid.remove(i)
+        self.poller.register(self.server, READ_ONLY)
 
 
 
@@ -79,12 +53,11 @@ class GameServer:
 
         if n < len(bots):  #add new bots
             for uid in bots[n:]:
-                self.del_uid(uid)
+                self.del_client(uid)
         else:
             for i in range(n - len(bots)):
-                uid = self.new_uid()
+                uid = zzs.new_uid()
                 self.names[uid] = ("bot" + str(uid), True)
-
 
 
     def waiting_room(self):
@@ -94,16 +67,16 @@ class GameServer:
         """
         ready = 0
         while not self.clients or (ready < 2 or ready != len(self.names)):
-            print(f"waiting for clients at {self.engine.getsockname()}...")
+            print(f"waiting for clients at {self.server.getsockname()}...")
             #poll
             events = self.poller.poll(5000)  # every 2s checks for new clients
             for fd, flag in events:
                 #print(f"event on {fd} with {flag}")
                 #if polling on main socket it is accept request
                 if flag & (select.POLLIN | select.POLLPRI):
-                    if fd == self.engine.fileno():
+                    if fd == self.server.fileno():
                         print("new connection")
-                        (conn, addr) = self.engine.accept()
+                        (conn, addr) = self.server.accept()
 
                         #register new socket
                         conn.setblocking(False)
@@ -140,7 +113,7 @@ class GameServer:
 
                             for uid, fs in self.clients.items():
                                 if fs == fd:
-                                    self.del_uid(uid)
+                                    self.del_client(uid)
                                     break
 
                 elif flag & (select.POLLHUP | select.POLLERR):
@@ -153,7 +126,7 @@ class GameServer:
 
                     for uid, fs in self.clients.items():
                         if fs == fd:
-                            self.del_uid(uid)
+                            self.del_client(uid)
                             break
 
                 else:
@@ -165,10 +138,23 @@ class GameServer:
             ready = len(is_ready)
 
 
+    def del_client(self, i):
+        """remove any trace of uid 'i'"""
+        #remove from clients
+        if i in self.clients:
+            del self.clients[i]
+
+        #remove from names
+        if i in self.names:
+            del self.names[i]
+
+        zzs.del_uid(i)
+
+
 
     def greet_client(self, fd, name):
         """send uid to client"""
-        uid = self.new_uid()
+        uid = zzs.new_uid()
         print(f"Server: uid for {name} is {uid}")
         if uid is not None:
             self.clients[uid] = fd
@@ -202,7 +188,7 @@ class GameServer:
 
                 for uid, fs in self.clients.items():
                     if fs == fd:
-                        self.del_uid(uid)
+                        self.del_client(uid)
                         break
 
 
@@ -219,9 +205,20 @@ class GameServer:
 
 
     def newgame(self):
+
         """players is a list of players objects"""
         #self.connect_clients()
         time.sleep(1)       #wait one second
+
+        self.engine = zzs.Engine(True)
+        for uid in self.names:
+            if uid in self.clients:
+                self.engine.add_player(uid, 0)
+            else:
+                self.engine.add_player(uid, 1)
+
+        self.ingame = ''.join(chr(uid) for uid in self.names.keys())
+
         print(f"Server: sending start")
         for uid, fd in self.clients.items():
             sock = self.connections[fd]
@@ -232,18 +229,6 @@ class GameServer:
                 print("broken connection with " + str(sock.getsockname()))
 
         #the game is about to start
-
-        if self.players:
-            self.players.clear()
-
-        for uid in self.names:
-            self.players[uid] = Player()
-
-        self.rounds = 0
-
-        #sleep 3.5 s here
-        #time.sleep(0.5)
-
 
         cdown = count.down(3)
         while True:
@@ -267,13 +252,16 @@ class GameServer:
         ! means fire
         * means load : can always load, so no need to specify
         """
+
+        self.engine.newround()
+
         for uid, fd in self.clients.items():
 
-            if uid in self.players:
+            if not self.engine.gameover(uid):
                 act = '*'
-                if self.players[uid].can_shield():
-                    act += '#' * self.players[uid].can_shield()
-                if self.players[uid].can_fire():
+                if self.engine.can_shield(uid):
+                    act += '#' * self.engine.can_shield(uid)
+                if self.engine.can_fire(uid):
                     act += '!'
             else:
                 act = 'xxx'
@@ -291,8 +279,6 @@ class GameServer:
     def stage(self):
         """collect stage messages from players, only last one gets commited"""
 
-        self.staged.clear()
-
         start = time.time()
         end = start + 2     #1.0s wait    == 0 0 7
         while time.time() < end:
@@ -300,7 +286,7 @@ class GameServer:
             for fd, flag in events:
                 #if polling on main socket it is accept request
                 if flag & (select.POLLIN | select.POLLPRI):
-                    if fd != self.engine.fileno():
+                    if fd != self.server.fileno():
                         sock = self.connections[fd]
 
                         for uid, fs in self.clients.items(): #find clients uid
@@ -311,7 +297,7 @@ class GameServer:
                         if data:
                             act = data.decode()
                             print(f"{uid} staging message {act}")
-                            self.staged[uid] = ord(act[-1])
+                            self.engine.stage(uid, ord(act[-1]))
                         else: #closing connection if empty message
                             self.poller.unregister(sock)
                             sock.close()
@@ -320,8 +306,9 @@ class GameServer:
 
                                 for uid, fs in self.clients.items():
                                     if fs == fd:
-                                        self.del_uid(uid)
+                                        self.del_client(uid)
                                         break
+
 
 
 
@@ -329,90 +316,17 @@ class GameServer:
 
 
     def commit(self):
-        """execute action act of player uid
-        
-        action is a string and can be any of
-        empty   player not responded or loading, deault loading
-        AA      player A is defending
-        AB      player A is shooting player B
-        """
-
-        to_remove = set()  #staged messages to be removed because faulty
-        print(self.staged)
-        for uid, p in self.players.items():
-            if uid not in self.clients:     #this is a bot
-                others = dict(self.players)
-                del others[uid]
-                act = p.random(uid, others)
-                if act is not None:
-                    self.staged[uid] = act
-
-            #real client has sent non empty message
-            elif uid in self.staged: # and self.staged[uid] is not None:
-                if uid == self.staged[uid]:
-                    if not p.shield():  #commit did not work, wrong message
-                        to_remove.add(uid)
-                else:
-                    t = self.players[self.staged[uid]]
-                    if not p.fire(t):
-                        to_remove.add(uid)
-            else:   #empty staged message
-                if not p.load():
-                    to_remove.add(uid)
-
-        for uid in to_remove:
-            del self.staged[uid]
-
+        self.engine.commit()
 
     ######################################
 
 
     def solve(self):
-        """solve commited actions"""
-        to_remove = set()  #players to be removed because dead
-        report = chr(self.rounds)
-        num_rep = str(self.rounds)
+        """solve and send list of actions just occured"""
 
-        print(f"Round {self.rounds}")
-        for uid, p in self.players.items():
-            if uid in self.staged: #has shot or defended
-                oid = self.staged[uid]  #other
-                if uid != oid:          #p is shooting t
-                    print(f"\t{uid} is shooting {oid}")
-                    report  += chr(uid) + chr(oid)
-                    num_rep += str(uid) + str(oid)
-                    t = self.players[oid]
+        rep, allp = self.engine.solve()
 
-                    #target is dead if loading or is shooting someone else
-                    if oid not in self.staged or \
-                            self.staged[oid] not in [uid, oid]:
-                        to_remove.add(oid)   #remove it from game
-                else:
-                    print(f"\t{uid} is defending")
-                    report  += chr(uid) * 2          # AA -> A is defending
-                    num_rep += str(uid) * 2
-            else:
-                print(f"\t{uid} is loading")
-
-        for uid in to_remove:
-            print(f"\t{uid} is dead")
-            del self.players[uid]
-
-        num_rep += ';'
-        num_rep += ''.join(str(uid) for uid in self.players)
-        print("->", num_rep)
-        print()
-
-        self.send_report(report)
-
-        self.rounds += 1
-        time.sleep(2)
-
-
-
-    def send_report(self, rep):
-        """send list of actions just occured"""
-        allp = ''.join(chr(uid) for uid in self.players.keys())
+        self.print_report(rep, allp)
 
         rep  = rep.encode()
         allp = allp.encode()
@@ -428,17 +342,42 @@ class GameServer:
                 print("broken connection with " + str(sock.getsockname()))
 
 
+    def print_report(self, rep, allp):
+        """print report rep, where allp is players in game"""
+        print(f"\nRound {ord(rep[0])}")
+
+        #a and t are consecutive characters
+        loaders = [ord(p) for p in self.ingame]
+        for a, t in zip(rep[1::2], rep[2::2]):
+            a = ord(a)
+            t = ord(t)
+            if a == t:
+                print(f"\t{a} is defending")
+            else:
+                print(f"\t{a} is shooting {t}")
+            loaders.remove(a)
+
+        for n in loaders:
+            print(f"\t{n} is loading")
+
+        print("\t-------In game----------")
+        self.ingame = allp
+        for p in self.ingame:
+            print(f"\t{ord(p)}", end='')
+
 
     def finish(self):
         """game over"""
-        if self.players:
-            winner = chr(next(iter(self.players)))
+        if self.ingame:
+            winner = chr(self.ingame[0])
+            print("The winner is ", self.ingame[0])
         else:
             winner = ''
+            print("There is no")
 
         for uid, fd in self.clients.items():
             sock = self.connections[fd]
-            msg = chr(uid) * 10 + winner
+            msg = chr(uid) * 10 + chr(winner)
             try:
                 sock.send(msg.encode())
             except ConnectionError:
@@ -454,10 +393,7 @@ class GameServer:
         lost; if no value is passed, return true if there is more than one
         player in game
         """
-        if uid is None:
-            return len(self.players) < 2
-        else:
-            return not uid in self.players
+        return self.engine.gameover()
 
 
 
@@ -484,6 +420,7 @@ class GameServer:
             #and send a report to each client
             print("solve\n")
             self.solve()
+            time.sleep(2)
 
         print("finish\n")
         self.finish()
@@ -494,7 +431,8 @@ class GameServer:
 if __name__ == "__main__":
     import sys
 
-    address = socket.gethostname() + ":5000"
+    #address = socket.gethostname() + ":5000"
+    address = "192.168.1.6:5000"
 
     match = GameServer(address)
     if len(sys.argv) > 1:
